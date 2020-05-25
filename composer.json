@@ -1,0 +1,21 @@
+{
+  "name": "webrium/core",
+  "description": "PHP Framework",
+  "type": "library",
+  "require": {
+    "php": ">=7.0.0"
+  },
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "benjamin-khalife",
+      "email": "nvioir@gmail.com"
+    }
+  ],
+  "minimum-stability": "dev",
+  "autoload": {
+    "psr-4": {
+      "webrium\\core\\": "src/"
+    }
+  }
+}
