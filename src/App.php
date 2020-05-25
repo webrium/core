@@ -1,6 +1,8 @@
 <?php
 namespace webrium\core;
 
+use webrium\core\Url;
+
 class App
 {
   private static $index_dir=false;
@@ -25,6 +27,28 @@ class App
   public static function index_path()
   {
     return self::$index_dir;
+  }
+
+
+  public static function input($name=false,$default=null) {
+    $method = Url::method();
+    $params=[];
+
+    if ($method == "GET") {
+        $params= $_GET;
+    }
+    else if ($method == "POST") {
+        $params= $_POST;
+    }
+    else if ($method == "PUT" || $method == "DELETE") {
+      parse_str(file_get_contents('php://input'),$params);
+    }
+
+    if ($name!=false) {
+      return $params[$name]??$default;
+    }
+
+    return $params;
   }
 
 }

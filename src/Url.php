@@ -19,6 +19,11 @@ class Url
     return $_SERVER['HTTP_HOST'];
   }
 
+  public static function method()
+  {
+    return $_SERVER['REQUEST_METHOD'];
+  }
+
   public static function home()
   {
     return self::scheme(true).self::domain();
@@ -110,5 +115,7 @@ class Url
       return false;
     }
   }
+
+
 
 }
