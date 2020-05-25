@@ -1,8 +1,6 @@
 <?php
 namespace webrium\core;
 
-use webrium\core\Url;
-
 class Url
 {
 
