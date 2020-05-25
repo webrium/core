@@ -39,7 +39,7 @@ class Url
     return self::main().$path;
   }
 
-  public static function uri ($resParams=false)
+  public static function uri($resParams=false)
   {
     $uri= $_SERVER['REQUEST_URI'];
 
