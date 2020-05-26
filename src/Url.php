@@ -101,11 +101,19 @@ class Url
     $url = self::get($text);
 
     $star = false;
-    if (strpos($url,'*')>-1) {
+    if (strpos($url,'/*')>-1) {
       $url = str_replace('*','',$url);
-      if (strpos($current,$url)>-1) {
+
+      if (strpos($current,$url)>-1 && (strlen($current) > strlen($url))) {
         $star = true;
       }
+      else {
+        return false;
+      }
+    }
+
+    if (substr($url,-1)!='/') {
+      $url.='/';
     }
 
     if ($url == $current || $star) {

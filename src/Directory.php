@@ -17,7 +17,7 @@ class Directory
     return App::index_path().self::$params[$name];
   }
 
-  public function get($name)
+  public static function get($name)
   {
     return self::$params[$name];
   }

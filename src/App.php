@@ -35,10 +35,10 @@ class App
     $params=[];
 
     if ($method == "GET") {
-        $params= $_GET;
+      $params= $_GET;
     }
     else if ($method == "POST") {
-        $params= $_POST;
+      $params= $_POST;
     }
     else if ($method == "PUT" || $method == "DELETE") {
       parse_str(file_get_contents('php://input'),$params);
@@ -49,6 +49,16 @@ class App
     }
 
     return $params;
+  }
+
+  public static function ReturnData($data){
+    if(is_array($data) || is_object($data))
+    {
+      header('Content-Type: application/json ; charset=utf-8 ');
+      $data=json_encode($data);
+    }
+
+    echo $data;
   }
 
 }

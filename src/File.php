@@ -58,7 +58,7 @@ class File
       }
 
       if ($status['func']) {
-        $controller->{$func}();
+        App::ReturnData($controller->{$func}());
         $status['exec']=true;
       }
 
