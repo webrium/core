@@ -8,6 +8,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use webrium\core\App;
 use webrium\core\Directory;
+use webrium\core\Session;
 use webrium\core\Route;
 
 
@@ -32,12 +33,17 @@ DB::setConfig($config);
 App::index(__DIR__);
 
 //============ (name , path)
-Directory::set('app','App');
-Directory::set('controllers','App/Controllers');
+Directory::initDefaultStructure();
 
 
-Route::get('show','controllers@msg->show');
-Route::get('test','controllers@msg->test');
 
-Route::any('test/*','controllers@msg->error');
+// Session::set(['name'=>'tam']);
+
+// echo "<br><br>";
+// echo "get name : ".Session::get('name');
+
+// Route::get('','controllers@msg->show');
+// Route::get('test','controllers@msg->test');
+//
+// Route::any('test/*','controllers@msg->error');
 // Route::any('test*','controllers@msg->error');
