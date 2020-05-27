@@ -33,10 +33,16 @@ class Directory
 
       $path = self::path($key);
 
-      if (! is_dir($path) ) {
-        \mkdir($path, 0777, true);
-      }
+      self::make($path);
 
+    }
+  }
+
+
+  public static function make($path)
+  {
+    if (! is_dir($path) ) {
+      \mkdir($path, 0777, true);
     }
   }
 
@@ -47,9 +53,12 @@ class Directory
     Directory::set('controllers','app/controllers');
     Directory::set('models','app/models');
     Directory::set('views','app/views');
+    Directory::set('routes','app/routes');
+    Directory::set('config','app/config');
 
     Directory::set('storage','app/storage');
     Directory::set('sessions','app/storage/framework/sessions');
+    Directory::set('render_views','app/storage/framework/views');
     Directory::set('logs','app/storage/logs');
 
     Directory::set('public','public');

@@ -6,6 +6,14 @@ use webrium\core\File;
 
 class Route
 {
+
+  private static $found = false;
+
+  public static function isFound()
+  {
+    return self::$found;
+  }
+
   public static function get($addr,$file)
   {
     self::check("GET",$addr,$file);
@@ -35,6 +43,7 @@ class Route
   {
     if ((Url::method()==$method || $method=='ALL')&& Url::is($addr)) {
       self::call($file);
+      self::$found=true;
     }
   }
 
@@ -44,4 +53,19 @@ class Route
     $class_func=explode('->',$arr[1]);
     File::runControllerFunction($arr[0],$class_func[0],$class_func[1]);
   }
+
+  public static function notFound($file=false)
+  {
+    if ( ! self::isFound()) {
+
+      if ( $file == false ) {
+        Debug::error404();
+      }
+      else if ( $file != false ) {
+        self::call($file);
+      }
+
+    }
+  }
+
 }

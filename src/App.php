@@ -19,7 +19,7 @@ class App
     spl_autoload_register(function($name){
       $name=str_replace('\\','/',$name).".php";
       if (File::exists($name)) {
-        File::run($name);
+        File::runOnce($name);
       }
     });
   }

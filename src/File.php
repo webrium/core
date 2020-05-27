@@ -14,7 +14,30 @@ class File
 
   public static function run($path)
   {
-    include_once $path;
+    if (self::exists($path)) {
+      include $path;
+      return true;
+    }
+
+    return false;
+  }
+
+  public static function runOnce($path)
+  {
+    if (self::exists($path)) {
+      include_once $path;
+      return true;
+    }
+
+    return false;
+  }
+
+  public static function source($path_name,$arr)
+  {
+    $path = Directory::path($path_name);
+    foreach ($arr as $key => $file) {
+      File::runOnce("$path/$file");
+    }
   }
 
   public static function runControllerFunction($dir_name,$class,$func)
