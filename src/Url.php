@@ -103,7 +103,6 @@ class Url
     $star = false;
     if (strpos($url,'/*')>-1) {
       $url = str_replace('*','',$url);
-
       if (strpos($current,$url)>-1 && (strlen($current) > strlen($url))) {
         $star = true;
       }

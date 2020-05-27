@@ -1,16 +1,14 @@
 <?php
 namespace App\Controllers;
 
+use webrium\mysql\DB;
+
 class msg
 {
-  function init()
-  {
-    // echo "start";
-  }
 
   function show()
   {
-    echo "is run :)";
+    return DB::table('users')->get();
   }
 
   public function test()
@@ -18,8 +16,5 @@ class msg
     echo "hello :)";
   }
 
-  public function error()
-  {
-    echo "<br>404<br>";
-  }
+
 }

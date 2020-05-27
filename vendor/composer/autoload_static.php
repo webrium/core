@@ -4,27 +4,40 @@
 
 namespace Composer\Autoload;
 
-class ComposerStaticInit56873ad1c3e10ad0f18008d53fafa283
+class ComposerStaticInit441bfb5535b40b5ef0f92c99581d2f5d
 {
     public static $prefixLengthsPsr4 = array (
         'w' => 
         array (
+            'webrium\\mysql\\' => 14,
             'webrium\\core\\' => 13,
+        ),
+        'b' => 
+        array (
+            'botfire\\botfire\\' => 16,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
+        'webrium\\mysql\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/webrium/mysql/src',
+        ),
         'webrium\\core\\' => 
         array (
             0 => __DIR__ . '/../..' . '/src',
+        ),
+        'botfire\\botfire\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/botfire/botfire/src',
         ),
     );
 
     public static function getInitializer(ClassLoader $loader)
     {
         return \Closure::bind(function () use ($loader) {
-            $loader->prefixLengthsPsr4 = ComposerStaticInit56873ad1c3e10ad0f18008d53fafa283::$prefixLengthsPsr4;
-            $loader->prefixDirsPsr4 = ComposerStaticInit56873ad1c3e10ad0f18008d53fafa283::$prefixDirsPsr4;
+            $loader->prefixLengthsPsr4 = ComposerStaticInit441bfb5535b40b5ef0f92c99581d2f5d::$prefixLengthsPsr4;
+            $loader->prefixDirsPsr4 = ComposerStaticInit441bfb5535b40b5ef0f92c99581d2f5d::$prefixDirsPsr4;
 
         }, null, ClassLoader::class);
     }

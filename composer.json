@@ -4,7 +4,7 @@
   "type": "library",
   "require": {
     "php": ">=7.0.0",
-    "botfire/botfire": "^0.0.6",
+    "botfire/botfire": ">=0.0.6",
     "webrium/mysql": ">=0.1.0"
   },
   "license": "MIT",
