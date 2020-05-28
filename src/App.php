@@ -2,6 +2,7 @@
 namespace webrium\core;
 
 use webrium\core\Url;
+use webrium\core\File;
 
 class App
 {
@@ -12,6 +13,8 @@ class App
     self::$index_dir=str_replace('\\','/',realpath($dir).'/');
 
     self::init_spl_autoload_register();
+
+    File::runOnce(__DIR__.'/lib/Helper.php');
   }
 
   public static function init_spl_autoload_register()
