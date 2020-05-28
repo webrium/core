@@ -20,10 +20,14 @@ class App
   public static function init_spl_autoload_register()
   {
     spl_autoload_register(function($name){
+
+      $name = App::index_path().$name;
       $name=str_replace('\\','/',$name).".php";
+
       if (File::exists($name)) {
         File::runOnce($name);
       }
+      
     });
   }
 

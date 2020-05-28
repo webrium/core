@@ -2,7 +2,7 @@
 use webrium\core\Url;
 use webrium\core\View;
 
-function url($str)
+function url($str='')
 {
   return Url::get($str);
 }
