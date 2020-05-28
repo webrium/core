@@ -34,7 +34,7 @@ class View
 
     if (! File::exists($render_file_path)) {
 
-      $str ='<?php foreach ($GLOBALS as $key => $value) {${$key}=$value;}; function view($name,$params=[]){ return \webrium\core\View::renderComponentView($name,$params); }?>';
+      $str ='<?php foreach ($GLOBALS as $key => $value) {${$key}=$value;};?>';
 
       $code = $str. File::getContent($file_path);
 
@@ -45,43 +45,13 @@ class View
       $code = str_replace('@end','?>',$code);
       $code = str_replace('@php','<?php',$code);
 
-
-
       File::putContent($render_file_path,$code);
     }
 
     return self::loadPath($render_file_path);
   }
 
-  public static function renderComponentView($view,$params=[])
-  {
 
-    $path = Directory::path('views');
-    $file_path="$path/$view.php";
-
-    $hash_file = self::hash($file_path);
-
-    $render_path = Directory::path('render_views');
-    $render_file_path="$render_path/$hash_file.php";
-
-
-    $GLOBALS = $params;
-
-    if (! File::exists($render_file_path) ) {
-
-      $str ='<?php foreach ($GLOBALS as $key => $value) {${$key}=$value;}?>';
-
-      $code = $str. File::getContent($file_path);
-
-      $code = str_replace('@echo','<?=',$code);
-      $code = str_replace('@end','?>',$code);
-      $code = str_replace('@php','<?php',$code);
-
-      File::putContent($render_file_path,$code);
-    }
-
-    return self::loadPath($render_file_path);
-  }
   /**
    * Get the MD5 hash of the file at the given path.
    *
