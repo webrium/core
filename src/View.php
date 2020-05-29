@@ -7,7 +7,6 @@ use webrium\core\Directory;
 class View
 {
 
-
   private static function loadPath($view)
   {
     ob_start();
@@ -75,6 +74,5 @@ class View
 
     return count($list);
   }
-
 
 }
