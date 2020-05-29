@@ -2,15 +2,16 @@
 namespace webrium\core;
 
 use webrium\core\Url;
+use webrium\core\Debug;
 use webrium\core\File;
 
 class App
 {
-  private static $index_dir=false;
+  private static $rootPath=false;
 
-  public static function index($dir)
+  public static function root($dir)
   {
-    self::$index_dir=str_replace('\\','/',realpath($dir).'/');
+    self::$rootPath=str_replace('\\','/',realpath($dir).'/');
 
     self::init_spl_autoload_register();
 
@@ -21,19 +22,22 @@ class App
   {
     spl_autoload_register(function($name){
 
-      $name = App::index_path().$name;
+      $name = App::rootPath().$name;
       $name=str_replace('\\','/',$name).".php";
 
       if (File::exists($name)) {
         File::runOnce($name);
       }
-      
+      else {
+        Debug::createError("Class '".basename($name)."' not found",$name,false,404);
+      }
+
     });
   }
 
-  public static function index_path()
+  public static function rootPath()
   {
-    return self::$index_dir;
+    return self::$rootPath;
   }
 
 
