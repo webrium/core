@@ -6,7 +6,5 @@ $vendorDir = dirname(dirname(__FILE__));
 $baseDir = dirname($vendorDir);
 
 return array(
-    'webrium\\mysql\\' => array($vendorDir . '/webrium/mysql/src'),
     'webrium\\core\\' => array($baseDir . '/src'),
-    'botfire\\botfire\\' => array($vendorDir . '/botfire/botfire/src'),
 );
