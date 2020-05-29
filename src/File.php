@@ -2,6 +2,7 @@
 namespace webrium\core;
 
 use webrium\core\App;
+use webrium\core\Debug;
 use webrium\core\Directory;
 
 
@@ -61,8 +62,8 @@ class File
     }
     else {
       $status['func']=false;
-      $status['code']=404;
-      $status['error_level']='function';
+
+      Debug::createError("$func not found",$n,false,404);
     }
 
     if (method_exists($controller,'end')) {
