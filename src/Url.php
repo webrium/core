@@ -32,7 +32,7 @@ class Url
   public static function main()
   {
     $doc = self::doc_root();
-    $index = App::index_path();
+    $index = App::rootPath();
 
     $len=strlen($doc);
 

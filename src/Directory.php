@@ -14,7 +14,7 @@ class Directory
 
   public static function path($name)
   {
-    return App::index_path().self::$params[$name];
+    return App::rootPath().self::$params[$name];
   }
 
   public static function get($name)
@@ -57,6 +57,8 @@ class Directory
     Directory::set('config','app/config');
 
     Directory::set('storage','app/storage');
+    Directory::set('storage_app','app/storage/app');
+    
     Directory::set('sessions','app/storage/framework/sessions');
     Directory::set('render_views','app/storage/framework/views');
     Directory::set('logs','app/storage/logs');
