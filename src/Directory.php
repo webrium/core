@@ -38,13 +38,29 @@ class Directory
     }
   }
 
-
   public static function make($path)
   {
     if (! is_dir($path) ) {
-      \mkdir($path, 0777, true);
+      \mkdir($path, 0755, true);
     }
   }
+
+  public static function validate()
+  {
+    $valid = true;
+    foreach (self::all() as $key => $dirs) {
+
+      $path = self::path($key);
+
+      if (! is_dir($path) ) {
+        $valid=false;
+      }
+
+    }
+    
+    return $valid;
+  }
+
 
 
   public static function initDefaultStructure()
@@ -58,7 +74,7 @@ class Directory
 
     Directory::set('storage','app/storage');
     Directory::set('storage_app','app/storage/app');
-    
+
     Directory::set('sessions','app/storage/framework/sessions');
     Directory::set('render_views','app/storage/framework/views');
     Directory::set('logs','app/storage/logs');
