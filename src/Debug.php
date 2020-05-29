@@ -1,8 +1,15 @@
 <?php
 namespace webrium\core;
 
+use webrium\core\File;
+
 class Debug
 {
+  private static
+  $showError = true ,
+  $writeError = true ,
+  $writeErrorPath = false;
+
   public static function displayErrors($status)
   {
     if ($status) {
@@ -10,16 +17,105 @@ class Debug
       ini_set('display_startup_errors', $status);
       error_reporting(E_ALL);
     }
+
+    self::error_handler();
   }
 
-  public static function code($code)
+  public static function writeError($status)
+  {
+    self::$writeError=$status;
+  }
+
+  public static function saveErrorPath($path)
+  {
+    self::$writeErrorPath=$path;
+  }
+
+  public static function errorCode($code)
   {
     http_response_code($code);
   }
 
   public static function error404()
   {
-    self::code(404);
+    self::errorCode(404);
     echo "404";
   }
+
+  public static function error_handler()
+  {
+    set_error_handler(function ($errno, $errstr, $errfile, $errline)
+    {
+      self::createError( $errstr, $errfile, $errline);
+    },E_ALL);
+  }
+
+  public static function createError($str,$file=false,$line=false,$response_code=500)
+  {
+    self::saveError($str,$file,$line,$response_code);
+    self::showError($str,$file,$line,$response_code);
+  }
+
+  public static function saveError($str,$file=false,$line=false,$response_code=500)
+  {
+    if (! self::$writeError) {
+      return;
+    }
+
+    $date = date('Y_m_d');
+    $time = date('H_i_s');
+
+    $name = "error_$date.txt";
+
+
+    $msg = "## $date $time Error : $str ";
+
+    if ($file) {
+      $msg.="File : $file ";
+    }
+
+    if ($line) {
+      $msg.="Line : $line";
+    }
+
+    if (! self::$writeErrorPath) {
+      self::$writeErrorPath = Directory::path('logs');
+    }
+
+    self::wrFile(self::$writeErrorPath."/$name",$msg);
+  }
+
+  public static function showError($str,$file=false,$line=false,$response_code=500)
+  {
+    if (! self::$showError) {
+      return;
+    }
+
+    $msg = "Error : $str ";
+
+    if ($file) {
+      $msg.="<br> file : $file ";
+    }
+
+    if ($line) {
+      $msg.="<br> line : $line";
+    }
+
+    if ($response_code!=false) {
+      self::errorCode($response_code);
+    }
+
+    die($msg);
+  }
+
+
+  private static function wrFile($name,$text)
+  {
+    $mode = (!file_exists($name)) ? 'w':'a';
+    $logfile = fopen($name, $mode);
+    fwrite($logfile, "\r\n".$text);
+    fclose($logfile);
+  }
+
+
 }
