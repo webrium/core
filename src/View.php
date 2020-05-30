@@ -37,10 +37,25 @@ class View
 
       $code = $str. File::getContent($file_path);
 
-      $code = str_replace('@endview','); ?>',$code);
-      $code = str_replace('@view','<?= view(',$code);
+      self::str_replace_type_value('/@foreach\((.*?)\)/','<?php foreach',": ?>",$code);
+      self::str_replace_type_value('/@for\((.*?)\)/','<?php for',": ?>",$code);
 
-      $code = str_replace('@echo','<?=',$code);
+      self::str_replace_type_value('/@if\((.*?)\)/','<?php if',": ?>",$code);
+      self::str_replace_type_value('/@elseif\((.*?)\)/','<?php elseif',": ?>",$code);
+      self::str_replace_type_value('/@else[[:blank:]]if\((.*?)\)/','<?php elseif',": ?>",$code);
+
+      self::str_replace_type_value('/@echo\((.*?)\)/','<?php echo',"; ?>",$code);
+      self::str_replace_type_value('/@view\((.*?)\)/','<?= view',"; ?>",$code);
+      self::str_replace_type_value('/@url\((.*?)\)/','<?= url',"; ?>",$code);
+
+      self::str_replace_type_value('/\{{(.*?)\}}/','<?php echo htmlspecialchars',"; ?>",$code);
+      self::str_replace_type_value('/\{!!(.*?)\!!}/','<?php echo ',"; ?>",$code,false);
+
+      $code = str_replace('@endforeach','<?php endforeach; ?>',$code);
+      $code = str_replace('@endfor','<?php endfor; ?>',$code);
+      $code = str_replace('@else','<?php else: ?>',$code);
+      $code = str_replace('@endif','<?php endif; ?>',$code);
+
       $code = str_replace('@end','?>',$code);
       $code = str_replace('@php','<?php',$code);
 
@@ -48,6 +63,23 @@ class View
     }
 
     return self::loadPath($render_file_path);
+  }
+
+
+  public static function str_replace_type_value($preg,$to,$end,&$code,$parentheses=true)
+  {
+    preg_match_all($preg, $code, $output_array);
+    $_str1=$output_array[0];
+    $_str2=$output_array[1];
+    foreach ($_str1 as $key => $value) {
+      $_r = $_str2[$key];
+      if ($parentheses) {
+        $code = str_replace($value,"$to($_r)$end",$code);
+      }
+      else {
+        $code = str_replace($value,"$to$_r$end",$code);
+      }
+    }
   }
 
 
