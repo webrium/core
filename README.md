@@ -26,7 +26,7 @@ App::root(__DIR__);
 
 Route::get('', function ()
 {
-  return ['message'=>'successfully'];
+  return ['message'=>'successful'];
 });
 
 ```
