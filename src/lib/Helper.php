@@ -1,4 +1,5 @@
 <?php
+use webrium\core\App;
 use webrium\core\Url;
 use webrium\core\View;
 
@@ -16,4 +17,9 @@ function redirect($url, $statusCode = 303)
 {
    header('Location: ' . $url, true, $statusCode);
    die();
+}
+
+function input($name=false,$default=null)
+{
+  return App::input($name,$default);
 }
