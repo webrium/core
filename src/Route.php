@@ -41,9 +41,15 @@ class Route
 
   public static function check($method,$addr,$file)
   {
+
     if ((Url::method()==$method || $method=='ALL')&& Url::is($addr)) {
-      self::call($file);
-      self::$found=true;
+      if (is_string($file)) {
+        self::call($file);
+        self::$found=true;
+      }
+      else {
+        App::ReturnData($file());
+      }
     }
   }
 
