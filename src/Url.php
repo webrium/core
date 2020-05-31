@@ -6,7 +6,7 @@ class Url
 
   public static function  doc_root()
   {
-    return $_SERVER['DOCUMENT_ROOT'].'/';
+    return $_SERVER['DOCUMENT_ROOT'];
   }
 
   public static function scheme($full=false)
