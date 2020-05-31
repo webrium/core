@@ -50,7 +50,7 @@ Try it now
 Output (http://localhost/app/)
 
 ``
-{"message":"successfully"}
+{"message":"successful"}
 ``
 
 
