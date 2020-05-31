@@ -6,9 +6,9 @@
 ```
 composer require webrium/core
 ```
-2) create app Directory
+2) create the app Directory
 
-3) create index.php in to the app
+3) create the index.php file in app
 
 index.php
 ```PHP
@@ -31,7 +31,7 @@ Route::get('', function ()
 
 ```
 
-4) create .htaccess file in to the app
+4) create the .htaccess file in app
 
 .htaccess
 ```
