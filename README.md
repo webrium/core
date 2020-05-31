@@ -1,4 +1,6 @@
-# Create Micro Web App By Webrium-core
+# Webrium Core
+
+## Create Micro Web App By webrium-core
 
 1) install core
 ```
@@ -42,5 +44,13 @@ AddDefaultCharset UTF-8
     RewriteRule ^(.*)$ index.php?_url=/$1 [QSA,L]
 </IfModule>
 ```
+
+Try it now
+
+Output (http://localhost/app/)
+
+``
+{"message":"successfully"}
+``
 
 
