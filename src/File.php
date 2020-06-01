@@ -62,8 +62,8 @@ class File
     }
     else {
       $status['func']=false;
-
-      Debug::createError("$func not found",$n,false,404);
+      $status['error_message']="function $func not found in $n";
+      $status['class_path']="$n.php";
     }
 
     if (method_exists($controller,'end')) {
