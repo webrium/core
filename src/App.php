@@ -20,16 +20,16 @@ class App
 
   public static function init_spl_autoload_register()
   {
-    spl_autoload_register(function($name){
+    spl_autoload_register(function($class){
 
-      $name = App::rootPath().$name;
-      $name=str_replace('\\','/',$name).".php";
+      $class = App::rootPath().$class;
+      $name=str_replace('\\','/',$class).".php";
 
       if (File::exists($name)) {
         File::runOnce($name);
       }
       else {
-        Debug::createError("Class '".basename($name)."' not found",$name,false,404);
+        Debug::createError("Class '".basename($class)."' not found",false,false,500);
       }
 
     });

@@ -43,9 +43,20 @@ class Route
   {
 
     if ((Url::method()==$method || $method=='ALL')&& Url::is($addr)) {
+
       if (is_string($file)) {
-        self::call($file);
+
+        // run controller function
+        $res= self::call($file);
+
+        // route found
         self::$found=true;
+
+        // function not found
+        if ($res['func']==false) {
+          Debug::createError($res['error_message'],$res['class_path'],false,500);
+        }
+
       }
       else {
         App::ReturnData($file());
@@ -57,7 +68,7 @@ class Route
   {
     $arr = explode('@',$file);
     $class_func=explode('->',$arr[1]);
-    File::runControllerFunction($arr[0],$class_func[0],$class_func[1]);
+    return File::runControllerFunction($arr[0],$class_func[0],$class_func[1]);
   }
 
   public static function notFound($file=false)
