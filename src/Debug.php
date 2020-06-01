@@ -46,12 +46,14 @@ class Debug
   {
     set_error_handler(function ($errno, $errstr, $errfile, $errline)
     {
-      self::createError( $errstr, $errfile, $errline);
+     self::createError( "$errstr $errfile", false, $errline);
     },E_ALL);
   }
 
   public static function createError($str,$file=false,$line=false,$response_code=500)
   {
+    self::getFileBackTrace($file);
+
     self::saveError($str,$file,$line,$response_code);
     self::showError($str,$file,$line,$response_code);
   }
@@ -71,7 +73,7 @@ class Debug
     $msg = "## $date $time Error : $str ";
 
     if ($file) {
-      $msg.="File : $file ";
+      $msg.="Stack trace : $file ";
     }
 
     if ($line) {
@@ -93,19 +95,48 @@ class Debug
 
     $msg = "Error : $str ";
 
-    if ($file) {
-      $msg.="<br> file : $file ";
+    if ($line) {
+      $msg.=":($line)";
     }
 
-    if ($line) {
-      $msg.="<br> line : $line";
+    if ($file) {
+      $msg.="<br> Stack trace : <br>$file ";
     }
+
 
     if ($response_code!=false) {
       self::errorCode($response_code);
     }
 
     die($msg);
+  }
+
+  private static function getFileBackTrace(&$file){
+    $msg='';
+
+    if ($file != false) {
+      $msg .="<span> <b> <span style=\"color:red\" >#</span> $file</b> </span> <br>";
+    }
+
+    foreach (debug_backtrace() as $key => $value) {
+
+      if (! isset($value['file']) || strpos($value['file'],'webrium/core/src')==true) {
+        continue;
+      }
+
+      $file = $value['file'];
+      $line = $value['line'];
+
+      if ( strpos($value['file'],'vendor')==false) {
+        $msg.="<span ><b># $file:( $line ) </b></span>";
+      }
+      else {
+        $msg.="<span style=\"color: #3e3e3e;\" ># $file:( $line )</span>";
+      }
+      $msg.="<br>";
+
+      $file=$msg;
+    }
   }
 
 
