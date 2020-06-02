@@ -6,12 +6,26 @@ class Url
 
   public static function  doc_root()
   {
+    if (substr($_SERVER['DOCUMENT_ROOT'], -1)!='/') {
+      return $_SERVER['DOCUMENT_ROOT'].'/';
+    }
+
     return $_SERVER['DOCUMENT_ROOT'];
   }
 
   public static function scheme($full=false)
   {
-    return $_SERVER['REQUEST_SCHEME'].($full?'://':'');
+
+    if (isset($_SERVER['REQUEST_SCHEME'])) {
+      return $_SERVER['REQUEST_SCHEME'].($full?'://':'');
+    }
+    elseif (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']=='on') {
+      return "https".($full?'://':'');
+    }
+    else {
+      return "http".($full?'://':'');
+    }
+
   }
 
   public static function domain()
