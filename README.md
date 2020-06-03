@@ -1,4 +1,3 @@
-# Webrium Core
 
 ## Create Micro Web App By webrium-core
 
