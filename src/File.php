@@ -50,7 +50,7 @@ class File
     $n = "$dir\\$class";
     $controller =new $n;
 
-    if (method_exists($controller,'init')) {
+    if (method_exists($controller,'__init')) {
       $status['init']=true;
     }
     else {
@@ -66,7 +66,7 @@ class File
       $status['class_path']="$n.php";
     }
 
-    if (method_exists($controller,'end')) {
+    if (method_exists($controller,'__end')) {
       $status['end']=true;
     }
     else {
@@ -77,7 +77,7 @@ class File
     if ($status['func']) {
 
       if ($status['init']) {
-        $controller->init();
+        $controller->__init();
       }
 
       if ($status['func']) {
@@ -86,7 +86,7 @@ class File
       }
 
       if ($status['end']) {
-        $controller->end();
+        $controller->__end();
       }
 
     }
