@@ -52,10 +52,13 @@ class Debug
 
   public static function createError($str,$file=false,$line=false,$response_code=500)
   {
+    $show = $file;
+
     self::getFileBackTrace($file);
+    self::getFileBackTraceForShow($show);
 
     self::saveError($str,$file,$line,$response_code);
-    self::showError($str,$file,$line,$response_code);
+    self::showError($str,$show,$line,$response_code);
   }
 
   public static function saveError($str,$file=false,$line=false,$response_code=500)
@@ -111,7 +114,7 @@ class Debug
     die($msg);
   }
 
-  private static function getFileBackTrace(&$file){
+  private static function getFileBackTraceForShow(&$file){
     $msg='';
 
     if ($file != false) {
@@ -134,6 +137,28 @@ class Debug
         $msg.="<span style=\"color: #3e3e3e;\" ># $file:( $line )</span>";
       }
       $msg.="<br>";
+
+      $file=$msg;
+    }
+  }
+
+  private static function getFileBackTrace(&$file){
+    $msg='';
+
+    if ($file != false) {
+      $msg .=" #$file";
+    }
+
+    foreach (debug_backtrace() as $key => $value) {
+
+      if (! isset($value['file']) || strpos($value['file'],'webrium/core/src')==true) {
+        continue;
+      }
+
+      $file = $value['file'];
+      $line = $value['line'];
+
+      $msg.=" #$file:( $line )";
 
       $file=$msg;
     }
