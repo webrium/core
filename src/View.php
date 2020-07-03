@@ -37,19 +37,24 @@ class View
 
       $code = $str. File::getContent($file_path);
 
-      self::str_replace_type_value('/@foreach\((.*?)\)/','<?php foreach',": ?>",$code);
-      self::str_replace_type_value('/@for\((.*?)\)/','<?php for',": ?>",$code);
+      self::str_replace_type_value('/@foreach\((.+)\)/','<?php foreach',": ?>",$code);
+      self::str_replace_type_value('/@foreach[[:blank:]]\((.+)\)/','<?php foreach',": ?>",$code);
 
-      self::str_replace_type_value('/@if\((.*?)\)/','<?php if',": ?>",$code);
-      self::str_replace_type_value('/@elseif\((.*?)\)/','<?php elseif',": ?>",$code);
-      self::str_replace_type_value('/@else[[:blank:]]if\((.*?)\)/','<?php elseif',": ?>",$code);
+      self::str_replace_type_value('/@for\((.+)\)/','<?php for',": ?>",$code);
+      self::str_replace_type_value('/@for[[:blank:]]\((.+)\)/','<?php for',": ?>",$code);
 
-      self::str_replace_type_value('/@echo\((.*?)\)/','<?php echo',"; ?>",$code);
-      self::str_replace_type_value('/@view\((.*?)\)/','<?= view',"; ?>",$code);
-      self::str_replace_type_value('/@url\((.*?)\)/','<?= url',"; ?>",$code);
+      self::str_replace_type_value('/@if\((.+)\)/','<?php if',": ?>",$code);
+      self::str_replace_type_value('/@if[[:blank:]]\((.+)\)/','<?php if',": ?>",$code);
 
-      self::str_replace_type_value('/\{{(.*?)\}}/','<?php echo htmlspecialchars',"; ?>",$code);
-      self::str_replace_type_value('/\{!!(.*?)\!!}/','<?php echo ',"; ?>",$code,false);
+      self::str_replace_type_value('/@elseif\((.+)\)/','<?php elseif',": ?>",$code);
+      self::str_replace_type_value('/@else[[:blank:]]if\((.+)\)/','<?php elseif',": ?>",$code);
+
+      self::str_replace_type_value('/@echo\((.+)\)/','<?php echo',"; ?>",$code);
+      self::str_replace_type_value('/@view\((.+)\)/','<?= view',"; ?>",$code);
+      self::str_replace_type_value('/@url\((.+)\)/','<?= url',"; ?>",$code);
+
+      self::str_replace_type_value('/\{{(.+)\}}/','<?php echo htmlspecialchars',"; ?>",$code);
+      self::str_replace_type_value('/\{!!(.+)\!!}/','<?php echo ',"; ?>",$code,false);
 
       $code = str_replace('@endforeach','<?php endforeach; ?>',$code);
       $code = str_replace('@endfor','<?php endfor; ?>',$code);
@@ -69,10 +74,14 @@ class View
   public static function str_replace_type_value($preg,$to,$end,&$code,$parentheses=true)
   {
     preg_match_all($preg, $code, $output_array);
+
     $_str1=$output_array[0];
     $_str2=$output_array[1];
+
     foreach ($_str1 as $key => $value) {
+
       $_r = $_str2[$key];
+
       if ($parentheses) {
         $code = str_replace($value,"$to($_r)$end",$code);
       }
