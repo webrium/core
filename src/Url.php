@@ -47,7 +47,13 @@ class Url
   {
     $doc = self::doc_root();
     $index = App::rootPath();
+    
+    $pos = \strpos($index,$doc);
 
+    if ( $pos > 0 ) {
+      $index = \substr($index,$pos);
+    }
+      
     $len=strlen($doc);
 
     return self::home().'/'.substr($index,$len);
