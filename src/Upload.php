@@ -88,7 +88,7 @@ class Upload
 
     public function status()
     {
-      if ($this->error || File::exist($this->full_path)==false) {
+      if ($this->error || File::exists($this->full_path)==false) {
         return false;
       }
       return true;
