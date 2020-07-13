@@ -6,11 +6,7 @@ class Url
 
   public static function  doc_root()
   {
-    if (substr($_SERVER['DOCUMENT_ROOT'], -1)!='/') {
-      return $_SERVER['DOCUMENT_ROOT'].'/';
-    }
-
-    return $_SERVER['DOCUMENT_ROOT'];
+    return self::checkSlash(self::server('DOCUMENT_ROOT'));
   }
 
   public static function scheme($full=false)
@@ -47,13 +43,13 @@ class Url
   {
     $doc = self::doc_root();
     $index = App::rootPath();
-    
+
     $pos = \strpos($index,$doc);
 
     if ( $pos > 0 ) {
       $index = \substr($index,$pos);
     }
-      
+
     $len=strlen($doc);
 
     return self::home().'/'.substr($index,$len);
@@ -66,14 +62,12 @@ class Url
 
   public static function uri($resParams=false)
   {
-    $uri= $_SERVER['REQUEST_URI'];
-
-    if (substr($uri, -1)!='/') {
-      $uri.="/";
-    }
+    $uri= self::server('REQUEST_URI');
 
     if (! $resParams && strpos($uri,'?')>-1) {
       $uri=substr($uri,0,strpos($uri,'?'));
+
+      $uri = self::checkSlash($uri);
     }
 
     return $uri;
@@ -81,17 +75,17 @@ class Url
 
   public static function server_addr()
   {
-    return $_SERVER["SERVER_ADDR"];
+    return self::server('SERVER_ADDR');
   }
 
   public static function remote_addr()
   {
-    return $_SERVER["REMOTE_ADDR"];
+    return self::server('REMOTE_ADDR');
   }
 
   public static function query()
   {
-    return $_SERVER["QUERY_STRING"];
+    return self::server('QUERY_STRING');
   }
 
   public static function current($resParams=false)
@@ -109,9 +103,14 @@ class Url
     return explode('/',self::current());
   }
 
-  public static function server()
+  public static function server($key=false)
   {
-    return $_SERVER;
+    if($key){
+      return $_SERVER[$key] ?? false;
+    }
+    else if ($key==false) {
+      return $_SERVER;
+    }
   }
 
 
@@ -119,6 +118,7 @@ class Url
   {
     $current = self::current();
     $url = self::get($text);
+
 
     $star = false;
     if (strpos($url,'/*')>-1) {
@@ -131,9 +131,7 @@ class Url
       }
     }
 
-    if (substr($url,-1)!='/') {
-      $url.='/';
-    }
+    $url = self::checkSlash($url);
 
     if ($url == $current || $star) {
       return true;
@@ -141,6 +139,14 @@ class Url
     else {
       return false;
     }
+  }
+
+  public static function checkSlash($value)
+  {
+    if (substr($value,-1)!='/') {
+      $value.='/';
+    }
+    return $value;
   }
 
 }
