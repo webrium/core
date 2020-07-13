@@ -66,9 +66,9 @@ class Url
 
     if (! $resParams && strpos($uri,'?')>-1) {
       $uri=substr($uri,0,strpos($uri,'?'));
-
-      $uri = self::checkSlash($uri);
     }
+
+    $uri = self::checkSlash($uri);
 
     return $uri;
   }
