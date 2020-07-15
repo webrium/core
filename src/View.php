@@ -37,24 +37,24 @@ class View
 
       $code = $str. File::getContent($file_path);
 
-      self::str_replace_type_value('/@foreach\((.+)\)/','<?php foreach',": ?>",$code);
-      self::str_replace_type_value('/@foreach[[:blank:]]\((.+)\)/','<?php foreach',": ?>",$code);
+      self::str_replace_type_value('/@foreach\((.+?\W+)\)/','<?php foreach',": ?>",$code);
+      self::str_replace_type_value('/@foreach[[:blank:]]\((.+?\W+)\)/','<?php foreach',": ?>",$code);
 
-      self::str_replace_type_value('/@for\((.+)\)/','<?php for',": ?>",$code);
-      self::str_replace_type_value('/@for[[:blank:]]\((.+)\)/','<?php for',": ?>",$code);
+      self::str_replace_type_value('/@for\((.+?\W+)\)/','<?php for',": ?>",$code);
+      self::str_replace_type_value('/@for[[:blank:]]\((.+?\W+)\)/','<?php for',": ?>",$code);
 
-      self::str_replace_type_value('/@if\((.+)\)/','<?php if',": ?>",$code);
-      self::str_replace_type_value('/@if[[:blank:]]\((.+)\)/','<?php if',": ?>",$code);
+      self::str_replace_type_value('/\@if\((.+?\W+)\)/','<?php if',": ?>",$code);
+      self::str_replace_type_value('/\@if[[:blank:]]\((.+?\W+)\)/','<?php if',": ?>",$code);
 
-      self::str_replace_type_value('/@elseif\((.+)\)/','<?php elseif',": ?>",$code);
-      self::str_replace_type_value('/@else[[:blank:]]if\((.+)\)/','<?php elseif',": ?>",$code);
+      self::str_replace_type_value('/@elseif\((.+?\W+)\)/','<?php elseif',": ?>",$code);
+      self::str_replace_type_value('/@else[[:blank:]]if\((.+?\W+)\)/','<?php elseif',": ?>",$code);
 
-      self::str_replace_type_value('/@echo\((.+)\)/','<?php echo',"; ?>",$code);
-      self::str_replace_type_value('/@view\((.+)\)/','<?= view',"; ?>",$code);
-      self::str_replace_type_value('/@url\((.+)\)/','<?= url',"; ?>",$code);
+      self::str_replace_type_value('/@echo\((.+?\W+)\)/','<?php echo',"; ?>",$code);
+      self::str_replace_type_value('/@view\((.+?\W+)\)/','<?= view',"; ?>",$code);
+      self::str_replace_type_value('/@url\((.+?\W+)\)/','<?= url',"; ?>",$code);
 
-      self::str_replace_type_value('/\{{(.+)\}}/','<?php echo htmlspecialchars',"; ?>",$code);
-      self::str_replace_type_value('/\{!!(.+)\!!}/','<?php echo ',"; ?>",$code,false);
+      self::str_replace_type_value('/\{{(.+?)\}}/','<?php echo htmlspecialchars',"; ?>",$code);
+      self::str_replace_type_value('/\{!!(.+?)\!!}/','<?php echo ',"; ?>",$code,false);
 
       $code = str_replace('@endforeach','<?php endforeach; ?>',$code);
       $code = str_replace('@endfor','<?php endfor; ?>',$code);
