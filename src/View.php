@@ -37,21 +37,21 @@ class View
 
       $code = $str. File::getContent($file_path);
 
-      self::str_replace_type_value('/@foreach\((.+?\W+)\)/','<?php foreach',": ?>",$code);
-      self::str_replace_type_value('/@foreach[[:blank:]]\((.+?\W+)\)/','<?php foreach',": ?>",$code);
+      self::str_replace_type_value('/\@foreach\((.+?\W+)\)/','<?php foreach',": ?>",$code);
+      self::str_replace_type_value('/\@foreach[[:blank:]]\((.+?\W+)\)/','<?php foreach',": ?>",$code);
 
-      self::str_replace_type_value('/@for\((.+?\W+)\)/','<?php for',": ?>",$code);
-      self::str_replace_type_value('/@for[[:blank:]]\((.+?\W+)\)/','<?php for',": ?>",$code);
+      self::str_replace_type_value('/\@for\((.+?\W+)\)/','<?php for',": ?>",$code);
+      self::str_replace_type_value('/\@for[[:blank:]]\((.+?\W+)\)/','<?php for',": ?>",$code);
 
       self::str_replace_type_value('/\@if\((.+?\W+)\)/','<?php if',": ?>",$code);
       self::str_replace_type_value('/\@if[[:blank:]]\((.+?\W+)\)/','<?php if',": ?>",$code);
 
-      self::str_replace_type_value('/@elseif\((.+?\W+)\)/','<?php elseif',": ?>",$code);
-      self::str_replace_type_value('/@else[[:blank:]]if\((.+?\W+)\)/','<?php elseif',": ?>",$code);
+      self::str_replace_type_value('/\@elseif\((.+?\W+)\)/','<?php elseif',": ?>",$code);
+      self::str_replace_type_value('/\@else[[:blank:]]if\((.+?\W+)\)/','<?php elseif',": ?>",$code);
 
-      self::str_replace_type_value('/@echo\((.+?\W+)\)/','<?php echo',"; ?>",$code);
-      self::str_replace_type_value('/@view\((.+?\W+)\)/','<?= view',"; ?>",$code);
-      self::str_replace_type_value('/@url\((.+?\W+)\)/','<?= url',"; ?>",$code);
+      self::str_replace_type_value('/\@echo\((.+?\W+)\)/','<?php echo',"; ?>",$code);
+      self::str_replace_type_value('/\@view\((.+?\W+)\)/','<?= view',"; ?>",$code);
+      self::str_replace_type_value('/\@url\((.+?\W+)\)/','<?= url',"; ?>",$code);
 
       self::str_replace_type_value('/\{{(.+?)\}}/','<?php echo htmlspecialchars',"; ?>",$code);
       self::str_replace_type_value('/\{!!(.+?)\!!}/','<?php echo ',"; ?>",$code,false);
