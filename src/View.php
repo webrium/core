@@ -1,6 +1,7 @@
 <?php
 namespace webrium\core;
 
+use webrium\core\Debug;
 use webrium\core\File;
 use webrium\core\Directory;
 
@@ -51,6 +52,7 @@ class View
 
       self::str_replace_type_value('/\@echo\((.+?\W+|.+)\)/','<?php echo',"; ?>",$code);
       self::str_replace_type_value('/\@view\((.+?\W+|.+)\)/','<?= view',"; ?>",$code);
+      self::str_replace_type_value('/\@load\((.+?\W+|.+)\)/','<?= load',"; ?>",$code);
       self::str_replace_type_value('/\@url\((.+?\W+|.+)\)/','<?= url',"; ?>",$code);
 
       self::str_replace_type_value('/\{{(.+?)\}}/','<?php echo htmlspecialchars',"; ?>",$code);
@@ -136,7 +138,12 @@ class View
   */
   private static function hash($path)
   {
-    return md5_file($path);
+    if (File::exists($path)) {
+      return md5_file($path);
+    }
+    else {
+      Debug::createError("View file '".basename($path)."' not found",false,false,500);
+    }
   }
 
   public static function clearCaches()
