@@ -13,6 +13,11 @@ function view($name,$params=[])
   return View::render($name,$params);
 }
 
+function load($name,$params=[])
+{
+  return View::load($name,$params);
+}
+
 function redirect($url, $statusCode = 303)
 {
    header('Location: ' . $url, true, $statusCode);
