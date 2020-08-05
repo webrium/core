@@ -4,16 +4,38 @@ namespace webrium\core;
 class Request
 {
 
+  /**
+   * send post request
+   *
+   * @param  string $url
+   * @param  array  $params
+   * @return string
+   */
   public static function post($url,$params=[])
   {
     return self::send($url,$params,true);
   }
 
+  /**
+   * send get request
+   *
+   * @param  string $url
+   * @param  array  $params
+   * @return string
+   */
   public static function get($url,$params=[])
   {
     return self::send($url,$params,false);
   }
 
+  /**
+   * send request
+   *
+   * @param  string  $url
+   * @param  array   $params
+   * @param  boolean $post  true for send post method
+   * @return string
+   */
   public static function send($url,$params=[],$post=false)
   {
     if (! $post){
@@ -40,6 +62,11 @@ class Request
     return $result;
   }
 
+  /**
+   * get client ip
+   *
+   * @return string
+   */
   public static function ip()
   {
     if (!empty($_SERVER['HTTP_CLIENT_IP']))   //check ip from share internet

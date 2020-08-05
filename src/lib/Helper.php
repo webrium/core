@@ -8,6 +8,11 @@ function url($str='')
   return Url::get($str);
 }
 
+function curent_url()
+{
+  return Url::current();
+}
+
 function view($name,$params=[])
 {
   return View::render($name,$params);

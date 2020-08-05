@@ -34,7 +34,7 @@ class View
 
     if (! File::exists($render_file_path)) {
 
-      $str ='<?php foreach ($GLOBALS as $key => $value) {${$key}=$value;};?>';
+      $str ='<?php foreach ($GLOBALS as $key => $value) {${$key}=$value;}; $_all = $GLOBALS; ?>';
 
       $code = $str. File::getContent($file_path);
 
