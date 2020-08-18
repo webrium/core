@@ -27,7 +27,7 @@ class Upload
     {
       $info=$this->getInfo();
 
-      if (! $this->exsist()) {
+      if (! $this->exists()) {
         $this->addError('file','No file found');
       }
 
@@ -238,10 +238,10 @@ class Upload
     }
 
     /**
-     * check is exsist file for upload
+     * check is exists file for upload
      * @return [boolean]
      */
-    public function exsist()
+    public function exists()
     {
       if(isset($_FILES[$this->param_name])){
         return true;
@@ -260,7 +260,7 @@ class Upload
       if ($this->info==null || $force==true) {
         $fileName=$this->param_name;
         $file=[];
-        if ($this->exsist()) {
+        if ($this->exists()) {
           $file['file_name']= $_FILES[$fileName]['name'];
           $file['size'] =$_FILES[$fileName]['size'];
           $file['tmp_name'] =$_FILES[$fileName]['tmp_name'];
