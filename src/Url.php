@@ -60,15 +60,22 @@ class Url
     return self::main().$path;
   }
 
-  public static function uri($resParams=false)
+  public static function current($resParams=false)
+  {
+    return self::home().self::uri($resParams);
+  }
+
+  public static function uri($resParams=false,$slash=false)
   {
     $uri= self::server('REQUEST_URI');
 
-    if (! $resParams && strpos($uri,'?')>-1) {
+    if ( ! $resParams && strpos($uri,'?')>-1) {
       $uri=substr($uri,0,strpos($uri,'?'));
     }
 
-    $uri = self::checkSlash($uri);
+    if ($slash) {
+      $uri = self::checkSlash($uri);
+    }
 
     return $uri;
   }
@@ -86,11 +93,6 @@ class Url
   public static function query()
   {
     return self::server('QUERY_STRING');
-  }
-
-  public static function current($resParams=false)
-  {
-    return self::home().self::uri($resParams);
   }
 
   public static function full()
@@ -131,7 +133,6 @@ class Url
       }
     }
 
-    $url = self::checkSlash($url);
 
     if ($url == $current || $star) {
       return true;
