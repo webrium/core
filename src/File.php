@@ -149,11 +149,11 @@ class File
     }
   }
 
-  public static function delete($path,$name)
+  public static function delete($path)
   {
-    if(self::exists("$path/$name")){
+    if(self::exists($path)){
 
-      \unlink("$path/$name");
+      \unlink($path);
 
       return true;
     }
