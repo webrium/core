@@ -138,9 +138,9 @@ class File
       default:
     }
 
-    header('Content-type: ' . $ctype);
 
-    if (File::exist($path)) {
+    if (File::exists($path)) {
+      header('Content-type: ' . $ctype);
       return file_get_contents($path);
     }
     else {
