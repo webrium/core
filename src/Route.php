@@ -62,6 +62,10 @@ class Route
         App::ReturnData($file());
       }
     }
+
+    if(self::isFound()){
+      die;
+    }
   }
 
   public static function call($file)
