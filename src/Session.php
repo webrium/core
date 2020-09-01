@@ -7,9 +7,9 @@ class Session
 {
 
   public static $session_startAppStatus=false;
-  private static $save_path;
+  private static $save_path=false;
 
-  public static function save_dir_name($name)
+  public static function set_path($name)
   {
     self::$save_path=Directory::path($name);
   }
@@ -18,7 +18,10 @@ class Session
   {
     if (Session::$session_startAppStatus == false) {
 
-      \session_save_path (self::$save_path);
+      if (self::$save_path!=false) {
+        \session_save_path(self::$save_path);
+      }
+
       \session_start();
 
       Session::$session_startAppStatus=true;
