@@ -2,6 +2,7 @@
 use webrium\core\App;
 use webrium\core\Url;
 use webrium\core\View;
+use webrium\core\Directory;
 
 function url($str='')
 {
@@ -32,4 +33,24 @@ function redirect($url, $statusCode = 303)
 function input($name=false,$default=null)
 {
   return App::input($name,$default);
+}
+
+function public_path($path='')
+{
+  return Directory::path('public')."/$path";
+}
+
+function app_path($path='')
+{
+  return Directory::path('app')."/$path";
+}
+
+function storage_path($path='')
+{
+  return Directory::path('storage_app')."/$path";
+}
+
+function root_path($path='')
+{
+  return App::rootPath().$path;
 }
