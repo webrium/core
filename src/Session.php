@@ -9,9 +9,9 @@ class Session
   public static $session_startAppStatus=false;
   private static $save_path=false;
 
-  public static function set_path($name)
+  public static function set_path($path)
   {
-    self::$save_path=Directory::path($name);
+    self::$save_path=$path;
   }
 
   public static function start()
