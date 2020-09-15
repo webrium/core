@@ -74,7 +74,7 @@ class Url
     return self::home().self::uri($resParams);
   }
 
-  public static function uri($resParams=false,$slash=false)
+  public static function uri($resParams=false)
   {
     $uri= self::server('REQUEST_URI');
 
