@@ -9,7 +9,7 @@ function url($str='')
   return Url::get($str);
 }
 
-function curent_url()
+function current_url()
 {
   return Url::current();
 }
