@@ -4,9 +4,11 @@ namespace webrium\core;
 class Url
 {
 
+  private static $main = false;
+
   public static function  doc_root()
   {
-    return self::checkSlash(self::server('DOCUMENT_ROOT'));
+    return self::without_trailing_slash(self::server('DOCUMENT_ROOT'));
   }
 
   public static function scheme($full=false)
@@ -39,25 +41,32 @@ class Url
     return self::scheme(true).self::domain();
   }
 
+  // این تابع باید مسیر اصلی پروژه را به دست اورد
   public static function main()
   {
-    $doc = self::doc_root();
-    $index = App::rootPath();
 
-    $pos = \strpos($index,$doc);
+    if (self::$main==false) {
 
-    if ( $pos > 0 ) {
-      $index = \substr($index,$pos);
+      $doc   = self::doc_root();
+      $index = App::rootPath();
+
+      $pos = \strpos($index,$doc);
+
+      if ( $pos > 0 ) {
+        $index = \substr($index,$pos);
+      }
+
+      $len=strlen($doc);
+
+      self::$main = self::home().substr($index,$len);
     }
 
-    $len=strlen($doc);
-
-    return self::home().'/'.substr($index,$len);
+    return self::$main;
   }
 
   public static function get($path='')
   {
-    return self::main().$path;
+    return self::main()."/$path";
   }
 
   public static function current($resParams=false)
@@ -69,12 +78,9 @@ class Url
   {
     $uri= self::server('REQUEST_URI');
 
-    if ( ! $resParams && strpos($uri,'?')>-1) {
-      $uri=substr($uri,0,strpos($uri,'?'));
-    }
-
-    if ($slash) {
-      $uri = self::checkSlash($uri);
+    if(!$resParams) {
+      $arr = explode('?',$uri);
+      $uri = $arr[0];
     }
 
     return $uri;
@@ -121,7 +127,6 @@ class Url
     $current = self::current();
     $url = self::get($text);
 
-
     $star = false;
     if (strpos($url,'/*')>-1) {
       $url = str_replace('*','',$url);
@@ -142,12 +147,45 @@ class Url
     }
   }
 
-  public static function checkSlash($value)
+
+  public static function remove_end_char($value)
   {
-    if (substr($value,-1)!='/') {
-      $value.='/';
+    return substr($value,0,-1);
+  }
+
+  public static function has_trailing_slash($value)
+  {
+    if (substr($value,-1)=='/') {
+      return true;
+    }
+    return false;
+  }
+
+  public static function without_trailing_slash($value)
+  {
+    if (self::has_trailing_slash($value)) {
+      $value = self::remove_end_char($value);
     }
     return $value;
+  }
+
+  // https://webmasters.googleblog.com/2010/04/to-slash-or-not-to-slash.html
+  public static function redirect_without_trailing_slash($current)
+  {
+    $current = explode('?',$current);
+    $current[0] = self::without_trailing_slash($current[0]);
+    $url = implode('?',$current);
+
+    redirect($url,301);
+  }
+
+  public static function ConfirmUrl()
+  {
+    $trailing_slash = self::has_trailing_slash(self::current());
+
+    if ($trailing_slash && self::current() != self::main().'/') {
+      Url::redirect_without_trailing_slash(self::current(true));
+    }
   }
 
 }
