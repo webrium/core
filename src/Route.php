@@ -71,8 +71,16 @@ class Route
   public static function call($file)
   {
     $arr = explode('@',$file);
-    $class_func=explode('->',$arr[1]);
-    return File::runControllerFunction($arr[0],$class_func[0],$class_func[1]);
+
+    $dir = 'controllers';
+
+    if (count($arr)==2) {
+      $dir    = $arr[0];
+      $arr[0] = $arr[1];
+    }
+
+    $class_func=explode('->',$arr[0]);
+    return File::runControllerFunction($dir,$class_func[0],$class_func[1]);
   }
 
   public static function notFound($file=false)
