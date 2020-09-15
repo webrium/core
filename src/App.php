@@ -24,7 +24,7 @@ class App
   {
     spl_autoload_register(function($class){
 
-      $class = App::rootPath().$class;
+      $class = App::rootPath()."/$class";
       $name=str_replace('\\','/',$class).".php";
 
       if (File::exists($name)) {
