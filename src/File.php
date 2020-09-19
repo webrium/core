@@ -195,5 +195,19 @@ class File
   {
     file_put_contents($name, $content);
   }
+  
+  /**
+ * Get the MD5 hash of the file at the given path.
+ *
+ * @param  string  $path
+ * @return string
+ */
+ public static function hash($path)
+ {
+   if (self::exists($path)) {
+     return md5_file($path);
+   }
+   return false;
+ }
 
 }
