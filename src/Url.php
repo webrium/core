@@ -83,7 +83,7 @@ class Url
       $uri = $arr[0];
     }
 
-    return $uri;
+    return urldecode($uri);
   }
 
   public static function server_addr()
