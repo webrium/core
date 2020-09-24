@@ -138,8 +138,10 @@ class View
   */
   private static function hash($path)
   {
-    if (File::exists($path)) {
-      return md5_file($path);
+    $hash = File::hash($path);
+
+    if ($hash) {
+      return $hash;
     }
     else {
       Debug::createError("View file '".basename($path)."' not found",false,false,500);
