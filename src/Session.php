@@ -28,12 +28,18 @@ class Session
     }
   }
 
-  public static function set($params)
+  public static function set($param,$value=false)
   {
     Session::start();
-    foreach ($params as $key => $value) {
-      $_SESSION[$key]=$value;
+    if (is_array($param)) {
+      foreach ($param as $key => $value) {
+        $_SESSION[$key]=$value;
+      }
     }
+    else {
+      $_SESSION[$param]=$value;
+    }
+
   }
 
   public static function get($name=false)
@@ -67,6 +73,11 @@ class Session
     Session::start();
     \session_unset();
     \session_destroy();
+  }
+
+  public static function lifetime($sec){
+    ini_set('session.cookie_lifetime', $sec);
+    ini_set('session.gc_maxlifetime' , $sec);
   }
 
 }
