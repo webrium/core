@@ -11,8 +11,8 @@ class App
 
   public static function root($dir)
   {
-    self::$rootPath=str_replace('\\','/',realpath($dir).'/');
-
+    self::rootPath($dir);
+    
     self::init_spl_autoload_register();
 
     File::runOnce(__DIR__.'/lib/Helper.php');
@@ -37,8 +37,12 @@ class App
     });
   }
 
-  public static function rootPath()
+  public static function rootPath($dir=false)
   {
+    if($dir){
+      self::$rootPath=str_replace('\\','/',realpath($dir).'/');
+    }
+
     return Url::without_trailing_slash(self::$rootPath);
   }
 
