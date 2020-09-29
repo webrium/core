@@ -42,6 +42,8 @@ class Route
   public static function check($method,$addr,$file)
   {
 
+    $addr = str_replace('/','\\',$addr);
+
     if ((Url::method()==$method || $method=='ALL')&& Url::is($addr)) {
 
       if (is_string($file)) {
