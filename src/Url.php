@@ -41,7 +41,6 @@ class Url
     return self::scheme(true).self::domain();
   }
 
-  // این تابع باید مسیر اصلی پروژه را به دست اورد
   public static function main()
   {
 
@@ -108,7 +107,9 @@ class Url
 
   public static function current_array()
   {
-    return explode('/',self::current());
+    $scheme  = self::scheme(true);
+    $current = self::current();
+    return array_filter(explode('/',substr($current, (strpos($current,$scheme)+strlen($scheme)) )));
   }
 
   public static function server($key=false)
