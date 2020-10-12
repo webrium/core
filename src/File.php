@@ -45,9 +45,11 @@ class File
     $status =['start_exec_time'=>microtime(true)];
 
     $dir = Directory::get($dir_name);
-    $dir=str_replace('/','\\',$dir);
 
     $n = "$dir\\$class";
+
+    $n=str_replace('/','\\',$n);
+
     $controller =new $n;
 
     if (method_exists($controller,'__init')) {
@@ -195,7 +197,7 @@ class File
   {
     file_put_contents($name, $content);
   }
-  
+
   /**
  * Get the MD5 hash of the file at the given path.
  *
