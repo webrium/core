@@ -96,6 +96,8 @@ class Route
         self::call($file);
       }
 
+      die;
+
     }
   }
 
