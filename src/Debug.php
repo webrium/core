@@ -8,6 +8,7 @@ class Debug
   private static
   $showError = true ,
   $writeError = true ,
+  $errorCallback = false ,
   $writeErrorPath = false;
 
   public static function displayErrors($status)
@@ -44,6 +45,11 @@ class Debug
 
   public static function error_handler()
   {
+    set_exception_handler(function ($callback)
+    {
+      self::createError($callback->getMessage()." ".$callback->getFile(), false, $callback->getLine());
+    });
+
     set_error_handler(function ($errno, $errstr, $errfile, $errline)
     {
      self::createError( "$errstr $errfile", false, $errline);
@@ -111,7 +117,17 @@ class Debug
       self::errorCode($response_code);
     }
 
+    if (self::$errorCallback) {
+      \webrium\core\Event::emit('_error',$msg);
+    }
+
     die($msg);
+  }
+
+  public static function callback($func)
+  {
+    self::$errorCallback = true;
+    \webrium\core\Event::on('_error',$func);
   }
 
   private static function getFileBackTraceForShow(&$file){
