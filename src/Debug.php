@@ -8,6 +8,7 @@ class Debug
   private static
   $showError = true ,
   $writeError = true ,
+  $ErrorMessage = false ,
   $errorCallback = false ,
   $writeErrorPath = false;
 
@@ -58,13 +59,14 @@ class Debug
 
   public static function createError($str,$file=false,$line=false,$response_code=500)
   {
+
     $show = $file;
 
     self::getFileBackTrace($file);
     self::getFileBackTraceForShow($show);
 
     self::saveError($str,$file,$line,$response_code);
-    self::showError($str,$show,$line,$response_code);
+    self::$ErrorMessage = self::showError($str,$show,$line,$response_code);
   }
 
   public static function saveError($str,$file=false,$line=false,$response_code=500)
@@ -99,7 +101,7 @@ class Debug
   public static function showError($str,$file=false,$line=false,$response_code=500)
   {
     if (! self::$showError) {
-      return;
+      return false;
     }
 
     $msg = "Error : $str ";
@@ -121,7 +123,8 @@ class Debug
       \webrium\core\Event::emit('_error',$msg);
     }
 
-    die($msg);
+    echo $msg;
+    return $msg;
   }
 
   public static function callback($func)
@@ -187,6 +190,11 @@ class Debug
     $logfile = fopen($name, $mode);
     fwrite($logfile, "\r\n".$text);
     fclose($logfile);
+  }
+
+  public static function findError()
+  {
+    return self::$ErrorMessage;
   }
 
 
