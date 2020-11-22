@@ -12,15 +12,7 @@ class View
   {
     ob_start();
     File::run($view);
-    $view = ob_get_clean();
-
-    if (Debug::findError()) {
-      echo Debug::findError();
-    }
-    else {
-      return $view;
-    }
-
+    return ob_get_clean();
   }
 
   public static function load($view)
