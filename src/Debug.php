@@ -2,13 +2,32 @@
 namespace webrium\core;
 
 use webrium\core\File;
+use webrium\core\View;
+use webrium\core\Event;
 
 class Debug
 {
+
+
+  public static $ErrorView   = false;
+
   private static
-  $showError = true ,
-  $writeError = true ,
-  $writeErrorPath = false;
+  $WritErrorsStatus = true ,
+  $ShowErrorStatus  = true ,
+  $LogPath          = false,
+  $Error            = false,
+  $HTML             = '',
+  $ErrorLine        = 0,
+  $ErrorFile        = '',
+  $ErrorStr         = '';
+
+  public static function status(){
+    return self::$Error;
+  }
+
+  public static function getHTML(){
+    return self::$HTML;
+  }
 
   public static function displayErrors($status)
   {
@@ -21,32 +40,14 @@ class Debug
     self::error_handler();
   }
 
-  public static function writeError($status)
-  {
-    self::$writeError=$status;
-  }
-
-  public static function saveErrorPath($path)
-  {
-    self::$writeErrorPath=$path;
-  }
-
-  public static function errorCode($code)
-  {
-    http_response_code($code);
-  }
-
-  public static function error404()
-  {
-    self::errorCode(404);
-    echo "404";
-  }
-
   public static function error_handler()
   {
+
     set_error_handler(function ($errno, $errstr, $errfile, $errline)
     {
-     self::createError( "$errstr $errfile", false, $errline);
+
+     self::$ErrorFile = $errfile= View::getOrginalNameByHash($errfile);
+     self::createError( "$errstr", false, $errline);
     },E_ALL);
   }
 
@@ -57,62 +58,36 @@ class Debug
     self::getFileBackTrace($file);
     self::getFileBackTraceForShow($show);
 
-    self::saveError($str,$file,$line,$response_code);
-    self::showError($str,$show,$line,$response_code);
+    if (! self::$Error) {
+
+      self::$Error     = true;
+      self::$ErrorStr  = $str;
+      self::$ErrorLine = $line;
+
+      Event::emit('error',['message'=>self::$ErrorStr,'line'=>self::$ErrorLine,'file'=>self::getErrorFile()]);
+
+      if (self::$WritErrorsStatus) {
+        self::saveError($str,$file,$line,$response_code);
+      }
+
+      self::showError($str,$show,$line,$response_code);
+
+    }
+
   }
 
-  public static function saveError($str,$file=false,$line=false,$response_code=500)
-  {
-    if (! self::$writeError) {
-      return;
-    }
-
-    $date = date('Y_m_d');
-    $time = date('H_i_s');
-
-    $name = "error_$date.txt";
-
-
-    $msg = "## $date $time Error : $str ";
-
-    if ($file) {
-      $msg.="Stack trace : $file ";
-    }
-
-    if ($line) {
-      $msg.="Line : $line";
-    }
-
-    if (! self::$writeErrorPath) {
-      self::$writeErrorPath = Directory::path('logs');
-    }
-
-    self::wrFile(self::$writeErrorPath."/$name",$msg);
+  public static function getErrorStr(){
+    return self::$ErrorStr;
   }
 
-  public static function showError($str,$file=false,$line=false,$response_code=500)
-  {
-    if (! self::$showError) {
-      return;
-    }
-
-    $msg = "Error : $str ";
-
-    if ($line) {
-      $msg.=":($line)";
-    }
-
-    if ($file) {
-      $msg.="<br> Stack trace : <br>$file ";
-    }
-
-
-    if ($response_code!=false) {
-      self::errorCode($response_code);
-    }
-
-    die($msg);
+  public static function getErrorLine(){
+    return self::$ErrorLine;
   }
+
+  public static function getErrorFile(){
+    return self::$ErrorFile;
+  }
+
 
   private static function getFileBackTraceForShow(&$file){
     $msg='';
@@ -164,6 +139,88 @@ class Debug
     }
   }
 
+
+  public static function saveError($str,$file=false,$line=false,$response_code=500)
+  {
+
+    $date = date('Y_m_d');
+    $time = date('H_i_s');
+
+    $name = "error_$date.txt";
+
+
+    $msg = "## $date $time Error : $str ";
+
+    if ($file) {
+      $msg.="Stack trace : $file ";
+    }
+
+    if ($line) {
+      $msg.="Line : $line";
+    }
+
+    if (! self::$LogPath) {
+      self::$LogPath = Directory::path('logs');
+    }
+
+    self::wrFile(self::$LogPath."/$name",$msg);
+  }
+
+  public static function showError($str,$file=false,$line=false,$response_code=500)
+  {
+    $msg = "Error : $str ";
+
+    if ($line) {
+      $msg.=" (".basename(self::getErrorFile())." :$line)";
+    }
+
+    if ($file) {
+      $msg.="<br> Stack trace : <br>$file ";
+    }
+
+    if ($response_code!=false) {
+      self::errorCode($response_code);
+    }
+
+    self::$HTML = $msg;
+
+    if (! Debug::$ErrorView) {
+      die(self::$HTML);
+    }
+  }
+
+  public static function error404()
+  {
+    self::errorCode(404);
+    echo "404";
+  }
+
+  public static function writErrorsStatus($status)
+  {
+    self::$WritErrorsStatus = $status;
+  }
+
+  public static function showErrorsStatus($status)
+  {
+    self::$ShowErrorStatus = $status;
+  }
+
+  public static function getShowErrorsStatus()
+  {
+    return self::$ShowErrorStatus;
+  }
+
+
+
+  public static function setLogPath($path)
+  {
+    self::$LogPath=$path;
+  }
+
+  public static function errorCode($code)
+  {
+    http_response_code($code);
+  }
 
   private static function wrFile($name,$text)
   {

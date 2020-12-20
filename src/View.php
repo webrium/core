@@ -4,20 +4,60 @@ namespace webrium\core;
 use webrium\core\Debug;
 use webrium\core\File;
 use webrium\core\Directory;
+use webrium\core\Event;
 
 class View
 {
 
+  private static $views;
+
   private static function loadPath($view)
   {
+    Debug::$ErrorView=true;
+
     ob_start();
     File::run($view);
-    return ob_get_clean();
+    $view = ob_get_clean();
+
+    if (Debug::status()==false) {
+      return $view;
+    }
+    else {
+      Event::emit('error_view',['message'=>Debug::getErrorStr(),'line'=>Debug::getErrorLine(),'file'=>Debug::getErrorFile()]);
+
+      if (Debug::getShowErrorsStatus()) {
+        return Debug::getHTML();
+      }
+
+    }
   }
 
   public static function load($view)
   {
     return self::loadPath(Directory::path('views')."/$view.php");
+  }
+
+  public static function findOrginalNameByHash($hashName){
+
+    $name = basename($hashName);
+
+    if ( isset(self::$views[$name]) ) {
+      return self::$views[$name];
+    }
+    else {
+      return false;
+    }
+  }
+
+  public static function getOrginalNameByHash($hashName)
+  {
+    $name = self::findOrginalNameByHash($hashName);
+    if ($name) {
+      return $name;
+    }
+    else {
+      return $hashName;
+    }
   }
 
   public static function render($view,$params=[])
@@ -27,8 +67,11 @@ class View
 
     $hash_file = self::hash($file_path);
 
+
     $render_path = Directory::path('render_views');
     $render_file_path="$render_path/$hash_file.php";
+
+    self::$views["$hash_file.php"] = "$view.php";
 
     $GLOBALS = $params;
 
