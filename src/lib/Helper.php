@@ -30,6 +30,11 @@ function redirect($url, $statusCode = 303)
    die();
 }
 
+function back(){
+  header('Location: ' . $_SERVER['HTTP_REFERER']);
+  die();
+}
+
 function input($name=false,$default=null)
 {
   return App::input($name,$default);
