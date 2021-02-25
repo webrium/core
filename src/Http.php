@@ -1,7 +1,7 @@
 <?php
 namespace webrium\core;
 
-class Request
+class Http
 {
 
   /**
