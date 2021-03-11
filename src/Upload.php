@@ -17,6 +17,9 @@ class Upload
         $this->multipleFiles = true;
         $this->generateFilesArray();
       }
+      else if($this->exists() && is_string($this->input()['name'])){
+        $this->files = [$this->input()];
+      }
     }
   }
 
@@ -41,36 +44,6 @@ class Upload
     return $this->files;
   }
 
-  public function each($func=false)
-  {
-    $array = [];
-
-    foreach ($this->getArray() as $key => $file) {
-
-      $one = new Upload;
-      $one->initSingleFile($this->inputName,[$file]);
-
-      if ($func) {
-        $func($one);
-      }
-      else {
-        $array[] = $one;
-      }
-
-    }
-
-    return $array;
-  }
-
-  public function get()
-  {
-    return $this->each();
-  }
-
-  public function getClientOriginalName()
-  {
-    return $this->first()['name'];
-  }
 
   public function has($name)
   {
@@ -107,5 +80,36 @@ class Upload
 
     }
     return $this->files = $files;
+  }
+
+  public function each($func=false)
+  {
+    $array = [];
+
+    foreach ($this->getArray() as $key => $file) {
+
+      $one = new Upload;
+      $one->initSingleFile($this->inputName,[$file]);
+
+      if ($func) {
+        $func($one);
+      }
+      else {
+        $array[] = $one;
+      }
+
+    }
+
+    return $array;
+  }
+
+  public function get()
+  {
+    return $this->each();
+  }
+
+  public function getClientOriginalName()
+  {
+    return $this->first()['name'];
   }
 }

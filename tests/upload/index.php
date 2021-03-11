@@ -29,7 +29,23 @@ Route::get('array', function ()
 
 Route::post('get/two-files', function ()
 {
-  // return $_FILES;
+  $images = new Upload('image-1');
+
+  // die;
+
+  echo "exists : ".( $images->exists()?'true':'false') ."<br>";
+  echo "count  : ". $images->count() ."<br>";
+  echo "<br> name:".$images->getClientOriginalName();
+
+  // $images->each(function ($file)
+  // {
+  //   echo "string";
+  //   echo $file->getClientOrginalName()."<br>";
+  // });
+  // foreach ($images->get() as $key => $file) {
+  //   echo $file->getClientOrginalName()."<br>";
+  // }
+
 });
 
 Route::any('get/array-files', function ()
@@ -47,7 +63,7 @@ Route::any('get/array-files', function ()
   //   echo $file->getClientOrginalName()."<br>";
   // });
   foreach ($images->get() as $key => $file) {
-    echo $file->getClientOrginalName()."<br>";
+    echo $file->getClientOriginalName()."<br>";
   }
 
    // return 'end';
