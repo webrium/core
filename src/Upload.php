@@ -6,274 +6,106 @@ use webrium\core\Directory;
 class Upload
 {
 
-    private $param_name='file';
-    private $info=null;
-    private $path='/';
-    private $extensions=false;
-    private $types=false;
-    private $max_size=false;
-    private $full_path;
-    private $name;
+  public $multipleFiles = false,$inputName,$files;
 
-    private $errors,$error=false;
+  function __construct($name=false)
+  {
+    if ($name) {
+      $this->inputName = $name;
 
-    function __construct($name)
-    {
-      $this->getInfo();
-      $this->param_name($name);
+      if ($this->exists() && is_array($this->input()['name'])) {
+        $this->multipleFiles = true;
+        $this->generateFilesArray();
+      }
     }
+  }
 
-    public function save()
-    {
-      $info=$this->getInfo();
+  public function initSingleFile($inputName,$files)
+  {
+    $this->inputName = $inputName;
+    $this->files = $files;
+  }
 
-      if (! $this->exists()) {
-        $this->addError('file','No file found');
-      }
+  public function input()
+  {
+    return $_FILES[$this->inputName]??false;
+  }
 
-      //set default name
-      if ($this->name==null) {
-        $this->name=$info['file_name'];
-      }
+  public function first()
+  {
+    return $this->files[0]??false;
+  }
 
-      // check max file size
-      if ($this->checkMaxSize()==false) {
-        $this->addError('size','File size');
-      }
+  public function getArray()
+  {
+    return $this->files;
+  }
 
-      if ($this->checkExt()==false) {
-        $this->addError('extension','File extension is not valid');
-      }
+  public function each($func=false)
+  {
+    $array = [];
 
-      if ($this->checkType()==false) {
-        $this->addError('type','File type is not valid');
-      }
+    foreach ($this->getArray() as $key => $file) {
 
-      if ($this->error) {
-        return $this;
-      }
+      $one = new Upload;
+      $one->initSingleFile($this->inputName,[$file]);
 
-      // make dir if not exsits
-      if(! \is_dir($this->path)){
-        mkdir($this->path,0777, true);
-      }
-
-      $this->full_path=$this->path.'/'.$this->name;
-
-      \move_uploaded_file(
-        $info['tmp_name'],
-        $this->full_path
-      );
-
-      return $this;
-    }
-
-    public function addError($type,$msg='')
-    {
-      $this->errors[]=[
-        'type'=>$type,
-        'msg'=>$msg
-      ];
-      $this->error=true;
-    }
-
-    public function getErrors()
-    {
-      return $this->errors;
-    }
-    public function error()
-    {
-      return $this->error;
-    }
-
-    public function status()
-    {
-      if ($this->error || File::exists($this->full_path)==false) {
-        return false;
-      }
-      return true;
-    }
-
-    public function getFileName()
-    {
-      return $this->name;
-    }
-
-    public function rename($rename,$custom_ext=false)
-    {
-      if ($custom_ext==false) {
-        $this->name=$this->set_ext_to_name($rename);
+      if ($func) {
+        $func($one);
       }
       else {
-        $this->name="$rename.$custom_ext";
+        $array[] = $one;
       }
-      return $this;
+
     }
 
-    public function randomName()
-    {
-      $rand='f_'.rand(10000,99909).'_'.rand(10000,99999).'_'.time();
-      $this->name=$this->set_ext_to_name($rand);
-      return $this;
-    }
+    return $array;
+  }
 
-    private function set_ext_to_name($name)
-    {
-      return "$name.".$this->getExt();
-    }
+  public function get()
+  {
+    return $this->each();
+  }
 
-    public function checkMaxSize(){
-      if($this->max_size != false  && $this->max_size < ( $this->getSize() / 1024 )){
-        return false;
+  public function getClientOriginalName()
+  {
+    return $this->first()['name'];
+  }
+
+  public function has($name)
+  {
+    return isset($_FILES[$name]);
+  }
+
+  public function exists()
+  {
+    return self::has($this->inputName);
+  }
+
+  public function count()
+  {
+    if ($this->multipleFiles) {
+      return count($this->input()['name']);
+    }
+    elseif ($this->exists() && is_string($this->input()['name'])) {
+      return 1;
+    }
+    else {
+      return 0;
+    }
+  }
+
+  public function generateFilesArray()
+  {
+    $files = [];
+
+    foreach ($this->input() as $key => $array) {
+
+      foreach ($array as $index=> $string) {
+        $files[$index][$key] = $string;
       }
-      else {
-        return true;
-      }
+
     }
-
-    public function checkExt(){
-      if($this->extensions != false && in_array($this->getExt(),$this->extensions)=== false){
-        return false;
-      }
-      else {
-        return true;
-      }
-    }
-
-    public function checkType(){
-      if($this->types != false && in_array($this->getType(),$this->types)=== false){
-        return false;
-      }
-      else {
-        return true;
-      }
-    }
-
-    /**
-     * get file size
-     */
-    public function getSize()
-    {
-      return $this->getProp('size');
-    }
-
-    /**
-     * get extension name
-     * @return [string]
-     */
-    public function getExt()
-    {
-      return $this->getProp('ext');
-    }
-
-    /**
-     * get type name
-     * @return [string]
-     */
-    public function getType()
-    {
-      return $this->getProp('type');
-    }
-
-    /**
-     * get file property
-     * @param  [string] $name
-     * @return [array or false]
-     */
-    public function getProp($name)
-    {
-      if (isset($this->getInfo()[$name])) {
-        return $this->getInfo()[$name];
-      }
-      else {
-        return false;
-      }
-    }
-
-
-    public function toStorage($path='')
-    {
-      return $this->path(Directory::path('storage')."/app/$path");
-    }
-
-    public function path($path='/')
-    {
-      $this->path=$path;
-      return $this;
-    }
-
-    public function getPath()
-    {
-      return $this->path;
-    }
-
-    public function getFullPath()
-    {
-      return $this->full_path;
-    }
-
-
-    public function maxSize($size)
-    {
-      $this->max_size=$size;
-      return $this;
-    }
-
-    public function limit_ext($arr)
-    {
-      $this->extensions=$arr;
-      return $this;
-    }
-
-    public function limit_type($arr)
-    {
-      $this->types=$arr;
-      return $this;
-    }
-
-    public function param_name($name)
-    {
-      $this->param_name=$name;
-      return $this;
-    }
-
-    /**
-     * check is exists file for upload
-     * @return [boolean]
-     */
-    public function exists()
-    {
-      if(isset($_FILES[$this->param_name])){
-        return true;
-      }
-      else{
-         return false;
-       }
-    }
-    /**
-     * get file information
-     * @param  boolean $force [description]
-     * @return [array or false]
-     */
-    public function getInfo($force=false)
-    {
-      if ($this->info==null || $force==true) {
-        $fileName=$this->param_name;
-        $file=[];
-        if ($this->exists()) {
-          $file['file_name']= $_FILES[$fileName]['name'];
-          $file['size'] =$_FILES[$fileName]['size'];
-          $file['tmp_name'] =$_FILES[$fileName]['tmp_name'];
-          $file['type']=$_FILES[$fileName]['type'];
-          $ext=(explode('.',strtolower($file['file_name'])));
-          $file['ext']=$ext[count($ext)-1];
-          $this->info=$file;
-        }
-        else {
-          return false;
-        }
-
-      }
-      return $this->info;
-    }
+    return $this->files = $files;
+  }
 }
