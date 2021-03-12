@@ -66,7 +66,11 @@ class Upload
 
   public function exists()
   {
-    return $this->has($this->inputName);
+    if ( $this->has($this->inputName) && $this->input() && ! empty($this->input()['name']) ) {
+      return true;
+    }
+
+    return false;
   }
 
   public function count()
