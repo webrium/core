@@ -146,7 +146,7 @@ class Upload
         $this->saveName .='.'.$this->extension();
       }
       else {
-        $this->saveName .= $setCustomExtention;
+        $this->saveName .= ".$setCustomExtention";
       }
 
       return $this;
@@ -223,7 +223,7 @@ class Upload
     }
 
     if (! $this->name()) {
-      $this->name($this->getClientOriginalName());
+      $this->saveName = $this->getClientOriginalName();
     }
 
     $full_path = "$this->savePath/".$this->name();
