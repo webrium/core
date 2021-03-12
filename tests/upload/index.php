@@ -29,22 +29,24 @@ Route::get('array', function ()
 
 Route::post('get/two-files', function ()
 {
-  $images = new Upload('image-1');
+  $image = new Upload('image-1');
 
-  // die;
 
-  echo "exists : ".( $images->exists()?'true':'false') ."<br>";
-  echo "count  : ". $images->count() ."<br>";
-  echo "<br> name:".$images->getClientOriginalName();
 
-  // $images->each(function ($file)
-  // {
-  //   echo "string";
-  //   echo $file->getClientOrginalName()."<br>";
-  // });
-  // foreach ($images->get() as $key => $file) {
-  //   echo $file->getClientOrginalName()."<br>";
-  // }
+  echo "exists : ".( $image->exists()?'true':'false') ."<br>";
+  echo "count  : ". $image->count() ."<br>";
+  echo "size  : ". $image->size() ."<br>";
+  echo "type  : ". $image->type() ."<br>";
+
+  $image->path(__DIR__)
+  ->maxSize(200)
+  ->allowTypes(['image/svg+xml'])
+  ->save();
+
+
+  if (!$image->status()) {
+    echo "error : " . $image->getFirstError();
+  }
 
 });
 
@@ -52,19 +54,18 @@ Route::any('get/array-files', function ()
 {
   $images = new Upload('image');
 
-  // die;
-
   echo "exists : ".( $images->exists()?'true':'false') ."<br>";
   echo "count  : ". $images->count() ."<br>";
-  // echo "<br> json:". json_encode($images->get());
 
-  // $images->each(function ($file)
-  // {
-  //   echo $file->getClientOrginalName()."<br>";
-  // });
+  $dir = __DIR__."/files";
+
   foreach ($images->get() as $key => $file) {
-    echo $file->getClientOriginalName()."<br>";
+    $status = $file->path($dir)->save();
+
+    if (! $status) {
+      echo "error : ".$file->getClientOriginalName()." message : ".$file->getFirstError()."<br>";
+    }
   }
 
-   // return 'end';
+  echo "<br>end<br>";
 });
