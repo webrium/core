@@ -40,7 +40,6 @@ Route::post('get/two-files', function ()
 
   $image->path(__DIR__)
   ->maxSize(200)
-  ->allowTypes(['image/svg+xml'])
   ->save();
 
 
