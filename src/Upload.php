@@ -211,14 +211,15 @@ class Upload
 
   public function save()
   {
-    if (! $this->validate()) {
-      $this->status = false;
-      return;
-    }
 
     // make dir if not exsits
     if(! \is_dir($this->savePath)){
       mkdir($this->savePath,0777, true);
+    }
+
+    if (! $this->validate()) {
+      $this->status = false;
+      return;
     }
 
     if (! $this->name()) {
