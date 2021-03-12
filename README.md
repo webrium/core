@@ -18,7 +18,8 @@ use webrium\core\App;
 use webrium\core\Debug;
 use webrium\core\Route;
 
-Debug::displayErrors(true);
+Debug::showErrorsStatus(true);
+Debug::writErrorsStatus(false);
 
 // init index path
 App::root(__DIR__);
