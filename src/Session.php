@@ -41,7 +41,7 @@ class Session
     }
   }
 
-  public static function get($name=false,$default=false)
+  public static function get($name,$default=false)
   {
     Session::start();
 
@@ -49,6 +49,18 @@ class Session
       return $default;
     }
     return $_SESSION[$name];
+  }
+
+  /**
+  * It can be called only once and deletes it after reading
+  * @param $name [string or Array of objects]
+  * @param $default
+  * @return session value
+  */
+  public static function one($name=false,$default=false){
+    $res = self::get($name,$default);
+    self::remove($name);
+    return $res;
   }
 
   public static function all()
