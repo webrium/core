@@ -39,15 +39,14 @@ class Session
     else {
       $_SESSION[$param]=$value;
     }
-
   }
 
-  public static function get($name=false)
+  public static function get($name=false,$default=false)
   {
     Session::start();
 
-    if (isset($_SESSION[$name]) ==false || $_SESSION[$name]==null) {
-      return false;
+    if (isset($_SESSION[$name]) == false || $_SESSION[$name] == null) {
+      return $default;
     }
     return $_SESSION[$name];
   }
