@@ -2,6 +2,7 @@
 use webrium\core\App;
 use webrium\core\Url;
 use webrium\core\View;
+use webrium\core\Session;
 use webrium\core\Directory;
 
 function url($str='')
@@ -31,9 +32,29 @@ function redirect($url, $statusCode = 303)
 }
 
 function back(){
+  Session::set('_old',input());
   header('Location: ' . $_SERVER['HTTP_REFERER']);
-  die();
+  return new \webrium\core\RequestBack;
 }
+
+function error($name=false)
+{
+  return \webrium\core\RequestBack::getError($name);
+}
+
+function old($name,$default=''){
+  $old = \webrium\core\RequestBack::getOldParamsValues();
+  if (isset($old[$name])) {
+    return $old[$name];
+  }
+  return $default;
+}
+
+function message($justGetText=false)
+{
+  return \webrium\core\RequestBack::getMessage($justGetText);
+}
+
 
 function input($name=false,$default=null)
 {
