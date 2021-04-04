@@ -28,7 +28,7 @@ function load($name,$params=[])
 function redirect($url, $statusCode = 303)
 {
    header('Location: ' . $url, true, $statusCode);
-   die();
+   return new \webrium\core\RequestBack;
 }
 
 function back(){
