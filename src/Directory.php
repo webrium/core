@@ -72,12 +72,13 @@ class Directory
     Directory::set('routes','app/routes');
     Directory::set('config','app/config');
 
-    Directory::set('storage','app/storage');
-    Directory::set('storage_app','app/storage/app');
+    Directory::set('storage','storage');
+    Directory::set('storage_app','storage/app');
+    Directory::set('sessions','storage/framework/sessions');
+    Directory::set('render_views','storage/framework/views');
 
-    Directory::set('sessions','app/storage/framework/sessions');
-    Directory::set('render_views','app/storage/framework/views');
-    Directory::set('logs','app/storage/logs');
+    Directory::set('logs','storage/logs');
+    Directory::set('langs','storage/langs');
 
     Directory::set('public','public');
   }

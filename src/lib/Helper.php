@@ -32,7 +32,6 @@ function redirect($url, $statusCode = 303)
 }
 
 function back(){
-  Session::set('_old',input());
   header('Location: ' . $_SERVER['HTTP_REFERER']);
   return new \webrium\core\RequestBack;
 }

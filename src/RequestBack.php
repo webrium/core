@@ -26,6 +26,12 @@ class RequestBack
     return $this;
   }
 
+  public function withErrors(array $params)
+  {
+    Session::set('_error',$params);
+    return $this;
+  }
+
   public function errorMessage($text)
   {
     Session::set([
@@ -90,6 +96,12 @@ class RequestBack
       self::$old = Session::once('_old',false);
     }
     return self::$old;
+  }
+
+  public function withInput()
+  {
+    Session::set('_old',input());
+    return $this;
   }
 
   public function die()

@@ -7,12 +7,12 @@ use webrium\core\File;
 
 class App
 {
-  private static $rootPath=false;
+  private static $rootPath=false,$local='en';
 
   public static function root($dir)
   {
     self::rootPath($dir);
-    
+
     self::init_spl_autoload_register();
 
     File::runOnce(__DIR__.'/lib/Helper.php');
@@ -76,6 +76,21 @@ class App
     }
 
     echo $data;
+  }
+
+  public static function setLocale($local)
+  {
+    self::$local = $local;
+  }
+
+  public static function isLocal($local)
+  {
+    return ($local==self::$local)?true:false;
+  }
+
+  public static function getLocale()
+  {
+    return self::$local;
   }
 
 }
