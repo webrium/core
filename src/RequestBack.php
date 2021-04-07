@@ -9,7 +9,7 @@ class RequestBack
 
   public static function getError($name=false){
     if (self::$error==null) {
-      self::$error = Session::one('_error',false);
+      self::$error = Session::once('_error',false);
     }
 
     if ($name) {
@@ -55,8 +55,8 @@ class RequestBack
 
   public static function getMessage($justGetText=false)
   {
-    $text = Session::one('_message',false);
-    $type = Session::one('_message_type','normal');
+    $text = Session::once('_message',false);
+    $type = Session::once('_message_type','normal');
 
     if (!$justGetText && $text) {
       $SCRIPT = self::findMessageByType($type);
@@ -87,7 +87,7 @@ class RequestBack
   public static function getOldParamsValues()
   {
     if (self::$old==null) {
-      self::$old = Session::one('_old',false);
+      self::$old = Session::once('_old',false);
     }
     return self::$old;
   }

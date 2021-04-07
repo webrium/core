@@ -57,7 +57,7 @@ class Session
   * @param $default
   * @return session value
   */
-  public static function one($name=false,$default=false){
+  public static function once($name=false,$default=false){
     $res = self::get($name,$default);
     self::remove($name);
     return $res;
