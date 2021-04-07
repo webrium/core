@@ -36,7 +36,7 @@ function back(){
   return new \webrium\core\RequestBack;
 }
 
-function error($name=false)
+function errors($name=false)
 {
   return \webrium\core\RequestBack::getError($name);
 }
