@@ -83,34 +83,30 @@ class View
 
       $code = $str. File::getContent($file_path);
 
-      self::str_replace_type_value('/\@foreach\((.+?\W+|.+)\)/','<?php foreach',": ?>",$code);
-      self::str_replace_type_value('/\@foreach[[:blank:]]\((.+?\W+|.+)\)/','<?php foreach',": ?>",$code);
+      self::CreateBaseCode('@foreach',$code,'<?php foreach',': ?>');
+      self::CreateBaseCode('@for',$code,'<?php for',': ?>');
+      self::CreateBaseCode('@if',$code,'<?php if',': ?>');
+      self::CreateBaseCode('@elseif',$code,'<?php elseif',': ?>');
+      self::CreateBaseCode('@while',$code,'<?php while',': ?>');
 
-      self::str_replace_type_value('/\@for\((.+?\W+|.+)\)/','<?php for',": ?>",$code);
-      self::str_replace_type_value('/\@for[[:blank:]]\((.+?\W+|.+)\)/','<?php for',": ?>",$code);
+      self::CreateBaseCode('@view',$code,'<?php echo view','; ?>');
+      self::CreateBaseCode('@load',$code,'<?php echo load','; ?>');
+      self::CreateBaseCode('@url',$code,'<?php echo url','; ?>');
+      self::CreateBaseCode('@old',$code,'<?php echo old',';?>');
+      self::CreateBaseCode('@message',$code,'<?php echo message','; ?>');
 
-      self::str_replace_type_value('/\@if\((.+?\W+|.+)\)/','<?php if',": ?>",$code);
-      self::str_replace_type_value('/\@if[[:blank:]]\((.+?\W+|.+)\)/','<?php if',": ?>",$code);
-
-      self::str_replace_type_value('/\@elseif\((.+?\W+|.+)\)/','<?php elseif',": ?>",$code);
-      self::str_replace_type_value('/\@else[[:blank:]]if\((.+?\W+|.+)\)/','<?php elseif',": ?>",$code);
-
-      self::str_replace_type_value('/\@echo\((.+?\W+|.+)\)/','<?php echo',"; ?>",$code);
-      self::str_replace_type_value('/\@view\((.+?\W+|.+)\)/','<?= view',"; ?>",$code);
-      self::str_replace_type_value('/\@load\((.+?\W+|.+)\)/','<?= load',"; ?>",$code);
-      self::str_replace_type_value('/\@url\((.+?\W+|.+)\)/','<?= url',"; ?>",$code);
-
-      self::str_replace_type_value('/\{{(.+?)\}}/','<?php echo htmlspecialchars',"; ?>",$code);
-      self::str_replace_type_value('/\{!!(.+?)\!!}/','<?php echo ',"; ?>",$code,false);
 
       $code = str_replace('@endforeach','<?php endforeach; ?>',$code);
       $code = str_replace('@endfor','<?php endfor; ?>',$code);
       $code = str_replace('@else','<?php else: ?>',$code);
       $code = str_replace('@endif','<?php endif; ?>',$code);
+      $code = str_replace('@endwhile','<?php endwhile; ?>',$code);
 
       $code = str_replace('@end','?>',$code);
       $code = str_replace('@php','<?php',$code);
 
+      self::ReplaceSpecialSymbol('{{','}}',$code,'<?php echo htmlspecialchars(','); ?>');
+      self::ReplaceSpecialSymbol('{!!','!!}',$code,'<?php echo ','; ?>');
       File::putContent($render_file_path,$code);
     }
 
@@ -118,61 +114,57 @@ class View
   }
 
 
-  public static function str_replace_type_value($preg,$to,$end,&$code,$parentheses=true)
+  public static function CreateBaseCode($find,&$code,$prefix,$suffix)
   {
-    preg_match_all($preg, $code, $output_array);
 
-    $_str1=$output_array[0];
-    $_str2=$output_array[1];
+    $error = false;
 
-    foreach ($_str1 as $key => $value) {
+    $arr = \substr($code,\strpos($code,$find));
+    $explode = \explode($find,$arr);
 
-      $value = self::checkSyntax($value);
+    foreach($explode  as $line){
+      if ($line) {
 
-      $_r = $_str2[$key];
-      $_r = self::checkSyntax($_r);
+        $s = 0;
+        $e = 0;
 
-      if ($parentheses) {
-        $code = str_replace($value,"$to($_r)$end",$code);
+        $finish = false;
+
+        foreach (str_split($line) as $key => $str) {
+          if ($str=='(') {
+            $s++;
+          }
+          elseif ($str==')') {
+            $e++;
+          }
+
+          if ($s>0 && $e==$s) {
+            $finish = $key;
+            break;
+          }
+        }
+
+        if ($finish) {
+          $block = \substr($line,0,$finish+1 );
+          $code = \str_replace("$find$block","$prefix$block$suffix",$code);
+        }
+        else {
+          $error = $find ;
+        }
       }
-      else {
-        $code = str_replace($value,"$to$_r$end",$code);
-      }
+    }
 
+    if ($error) {
+      throw new \Exception("Syntax error in '$error' in ".end(self::$views));
     }
   }
 
-  private static function checkSyntax($value)
+  public static function ReplaceSpecialSymbol($start,$end,&$code,$prefix,$suffix)
   {
-    $start = explode('(',$value);
-    $end = explode(')',$value);
-
-    $count_start = count($start);
-    $count_end = count($end);
-
-    if ($count_start != $count_end) {
-
-      $int = $count_end - $count_start;
-
-      for($i=0;$i<$int;$i++){
-        unset($end[$count_end-1]);
-      }
-
-      $new = implode(')',$end);
-
-      $count_start = count($start);
-      $count_end = count($end);
-
-      if (strrpos($new,')')>$count_end) {
-        $new = substr($new,0,strrpos($new,')')+1);
-      }
-
-      $value = $new;
-
-    }
-
-    return $value;
+    $code = \str_replace($start,$prefix,$code);
+    $code = \str_replace($end  ,$suffix,$code);
   }
+
 
 
   /**
