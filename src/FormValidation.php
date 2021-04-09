@@ -197,9 +197,17 @@ class FormValidation
   public function autoCheck()
   {
 
-    if (count($this->getErrors())>0) {
+    if ($this->isValid()==false) {
       back()->withError($this->error()->all())->withInput()->die();
     }
+  }
+
+  public function isValid()
+  {
+    if (count($this->getErrors())==0) {
+      return true;
+    }
+    return false;
   }
 
   private function initMessage($text,$customMessage=false)
@@ -236,5 +244,20 @@ class GetError{
   public function withFields()
   {
     return $this->array;
+  }
+
+  public function first()
+  {
+    if (isset($this->list[0])) {
+      return $this->list[0];
+    }
+    else {
+      return false;
+    }
+  }
+
+  public function asString($separator="\n")
+  {
+    return \implode($separator,$this->all());
   }
 }
