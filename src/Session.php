@@ -28,6 +28,24 @@ class Session
     }
   }
 
+  public static function id($id=false){
+    if (!$id) {
+      return \session_id();
+    }
+    else {
+      return \session_id($id);
+    }
+  }
+
+  public static function name($name=false){
+    if (!$name) {
+      return \session_name();
+    }
+    else {
+      return \session_name($name);
+    }
+  }
+
   public static function set($param,$value=false)
   {
     Session::start();

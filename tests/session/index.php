@@ -15,9 +15,11 @@ Directory::set('views','');
 // init index path
 App::root(__DIR__);
 
-
 Session::set('error','this error message');
 
 echo Session::get('error','is emty')."<br>";
-echo Session::one('error','is emty')."<br>";
+echo Session::once('error','is emty')."<br>";
 echo Session::get('error','is emty')."<br>";
+
+echo "id   : ". Session::id()."<br>";
+echo "name : ". Session::name();
