@@ -29,6 +29,22 @@ class Http
   }
 
   /**
+   * send json request
+   *
+   * @param  string $url
+   * @param  array  $params
+   * @return string
+   */
+  public static function json($url,$params=[])
+  {
+    return self::send($url,$params,true,function($ch) use ($params){
+      curl_setopt( $ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+      curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
+    });
+  }
+
+
+  /**
    * send request
    *
    * @param  string  $url
@@ -36,7 +52,7 @@ class Http
    * @param  boolean $post  true for send post method
    * @return string
    */
-  public static function send($url,$params=[],$post=false)
+  public static function send($url,$params=[],$post=false,$curl=null)
   {
     if (! $post){
       $url.="?" . http_build_query($params);
@@ -56,6 +72,10 @@ class Http
 
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+    if($curl){
+      $curl($ch);
+    }
 
     $result=curl_exec($ch);
     curl_close($ch);
