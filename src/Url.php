@@ -14,10 +14,15 @@ class Url
   public static function scheme($full=false)
   {
 
-    if (isset($_SERVER['REQUEST_SCHEME'])) {
-      return $_SERVER['REQUEST_SCHEME'].($full?'://':'');
+    $isSecure = false;
+    if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') {
+       $isSecure = true;
     }
-    elseif (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS']=='on') {
+    elseif (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https' || !empty($_SERVER['HTTP_X_FORWARDED_SSL']) && $_SERVER['HTTP_X_FORWARDED_SSL'] == 'on') {
+       $isSecure = true;
+    }
+    
+    elseif ($isSecure) {
       return "https".($full?'://':'');
     }
     else {
