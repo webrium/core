@@ -22,7 +22,7 @@ class Url
        $isSecure = true;
     }
     
-    elseif ($isSecure) {
+    if ($isSecure) {
       return "https".($full?'://':'');
     }
     else {
