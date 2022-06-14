@@ -55,7 +55,12 @@ class App
       $params= $_GET;
     }
     else if ($method == "POST") {
-      $params= $_POST;
+      if($_SERVER["CONTENT_TYPE"]=='application/json'){
+        $params= json_decode(file_get_contents('php://input'), true);
+      }
+      else{
+        $params= $_POST;
+      }
     }
     else if ($method == "PUT" || $method == "DELETE") {
       parse_str(file_get_contents('php://input'),$params);
