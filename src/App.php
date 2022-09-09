@@ -24,6 +24,10 @@ class App
   {
     spl_autoload_register(function($class){
 
+      if(substr($class, 0,4)=='App\\'){
+        $class[0] = 'a';
+      }
+
       $class = App::rootPath()."/$class";
       $name=str_replace('\\','/',$class).".php";
 
