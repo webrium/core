@@ -1,9 +1,9 @@
 <?php
-namespace webrium\core;
+namespace Webrium;
 
-use webrium\core\File;
-use webrium\core\Directory;
-use webrium\core\App;
+use Webrium\File;
+use Webrium\Directory;
+use Webrium\App;
 
 class FormValidation
 {

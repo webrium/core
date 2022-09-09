@@ -1,9 +1,8 @@
 <?php
-namespace webrium\core;
+namespace Webrium;
 
 class Event {
   private static $instance;
-  private $hooks = array();
 
   public static function on($hook_name, $fn){
     $instance = self::get_instance();

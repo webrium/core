@@ -1,7 +1,7 @@
 <?php
-namespace webrium\core;
+namespace Webrium;
 
-use webrium\core\FromValidation;
+use Webrium\FromValidation;
 
 class Request
 {

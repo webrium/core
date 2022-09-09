@@ -7,17 +7,21 @@ namespace Composer\Autoload;
 class ComposerStaticInitddc9c3fac70e9ed8a94fcf63774994a7
 {
     public static $prefixLengthsPsr4 = array (
-        'w' => 
+        'W' => 
         array (
-            'webrium\\core\\' => 13,
+            'Webrium\\' => 8,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'webrium\\core\\' => 
+        'Webrium\\' => 
         array (
             0 => __DIR__ . '/../..' . '/src',
         ),
+    );
+
+    public static $classMap = array (
+        'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
@@ -25,6 +29,7 @@ class ComposerStaticInitddc9c3fac70e9ed8a94fcf63774994a7
         return \Closure::bind(function () use ($loader) {
             $loader->prefixLengthsPsr4 = ComposerStaticInitddc9c3fac70e9ed8a94fcf63774994a7::$prefixLengthsPsr4;
             $loader->prefixDirsPsr4 = ComposerStaticInitddc9c3fac70e9ed8a94fcf63774994a7::$prefixDirsPsr4;
+            $loader->classMap = ComposerStaticInitddc9c3fac70e9ed8a94fcf63774994a7::$classMap;
 
         }, null, ClassLoader::class);
     }

@@ -1,7 +1,7 @@
 <?php
-namespace webrium\core;
+namespace Webrium;
 
-use webrium\core\Session;
+use Webrium\Session;
 
 class RequestBack
 {
@@ -66,7 +66,7 @@ class RequestBack
 
     if (!$justGetText && $text) {
       $SCRIPT = self::findMessageByType($type);
-      $SCRIPT = \str_replace('@text',$text,$SCRIPT);
+      $SCRIPT = \str_replace('@text',(string)$text,$SCRIPT);
       return $SCRIPT;
     }
     else {

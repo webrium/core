@@ -1,5 +1,5 @@
 <?php
-namespace webrium\core;
+namespace webrium;
 
 class Http
 {

@@ -1,10 +1,10 @@
 <?php
-namespace webrium\core;
+namespace Webrium;
 
-use webrium\core\Debug;
-use webrium\core\File;
-use webrium\core\Directory;
-use webrium\core\Event;
+use Webrium\Debug;
+use Webrium\File;
+use Webrium\Directory;
+use Webrium\Event;
 
 class View
 {

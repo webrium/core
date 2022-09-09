@@ -1,8 +1,8 @@
 <?php
-namespace webrium\core;
+namespace Webrium;
 
-use webrium\core\Url;
-use webrium\core\File;
+use Webrium\Url;
+use Webrium\File;
 
 class Route
 {

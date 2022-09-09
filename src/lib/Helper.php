@@ -1,9 +1,8 @@
 <?php
-use webrium\core\App;
-use webrium\core\Url;
-use webrium\core\View;
-use webrium\core\Session;
-use webrium\core\Directory;
+use Webrium\App;
+use Webrium\Url;
+use Webrium\View;
+use Webrium\Directory;
 
 function url($str='')
 {
@@ -28,21 +27,21 @@ function load($name,$params=[])
 function redirect($url, $statusCode = 303)
 {
    header('Location: ' . $url, true, $statusCode);
-   return new \webrium\core\RequestBack;
+   return new \Webrium\RequestBack;
 }
 
 function back(){
   header('Location: ' . $_SERVER['HTTP_REFERER']);
-  return new \webrium\core\RequestBack;
+  return new \Webrium\RequestBack;
 }
 
 function errors($name=false)
 {
-  return \webrium\core\RequestBack::getError($name);
+  return \Webrium\RequestBack::getError($name);
 }
 
 function old($name,$default=''){
-  $old = \webrium\core\RequestBack::getOldParamsValues();
+  $old = \Webrium\RequestBack::getOldParamsValues();
   if (isset($old[$name])) {
     return $old[$name];
   }
@@ -51,7 +50,7 @@ function old($name,$default=''){
 
 function message($justGetText=false)
 {
-  return \webrium\core\RequestBack::getMessage($justGetText);
+  return \Webrium\RequestBack::getMessage($justGetText);
 }
 
 

@@ -1,12 +1,12 @@
 <?php
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-use webrium\core\App;
-use webrium\core\Debug;
-use webrium\core\Route;
-use webrium\core\View;
-use webrium\core\Upload;
-use webrium\core\Directory;
+use Webrium\App;
+use Webrium\Debug;
+use Webrium\Route;
+use Webrium\View;
+use Webrium\Upload;
+use Webrium\Directory;
 
 Debug::showErrorsStatus(true);
 Debug::writErrorsStatus(false);

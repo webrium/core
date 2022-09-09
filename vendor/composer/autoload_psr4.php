@@ -6,5 +6,5 @@ $vendorDir = dirname(dirname(__FILE__));
 $baseDir = dirname($vendorDir);
 
 return array(
-    'webrium\\core\\' => array($baseDir . '/src'),
+    'Webrium\\' => array($baseDir . '/src'),
 );

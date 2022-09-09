@@ -1,9 +1,8 @@
 <?php
-namespace webrium\core;
+namespace Webrium;
 
-use webrium\core\File;
-use webrium\core\View;
-use webrium\core\Event;
+use Webrium\View;
+use Webrium\Event;
 
 class Debug
 {
