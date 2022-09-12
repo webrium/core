@@ -30,9 +30,11 @@ class Debug
 
   public static function displayErrors($status)
   {
+    
+    ini_set('display_errors', $status);
+    ini_set('display_startup_errors', $status);
+    
     if ($status) {
-      ini_set('display_errors', $status);
-      ini_set('display_startup_errors', $status);
       error_reporting(E_ALL);
     }
 
