@@ -101,5 +101,25 @@ class App
   {
     return self::$local;
   }
+  
+  private static $lang_store = [];
+  public static function lang($name)
+  {
+
+    $arr = explode('.', $name);
+    $file = $arr[0];
+    $variable = $arr[1];
+
+    if (!isset(self::$lang_store[$file])) {
+      $path = Directory::path('langs');
+      $lang = App::getLocale();
+
+      $content = include_once("$path/$lang/$file.php");
+      self::$lang_store[$file] = $content;
+    }
+
+
+    return self::$lang_store[$file][$variable] ?? false;
+  }
 
 }
