@@ -90,6 +90,7 @@ class View
       self::CreateBaseCode('@while',$code,'<?php while',': ?>');
 
       self::CreateBaseCode('@view',$code,'<?php echo view','; ?>');
+      self::CreateBaseCode('@lang',$code,'<?php echo lang','; ?>');
       self::CreateBaseCode('@load',$code,'<?php echo load','; ?>');
       self::CreateBaseCode('@url',$code,'<?php echo url','; ?>');
       self::CreateBaseCode('@old',$code,'<?php echo old',';?>');

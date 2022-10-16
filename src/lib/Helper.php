@@ -78,3 +78,7 @@ function root_path($path='')
 {
   return App::rootPath()."/$path";
 }
+
+function lang($name){
+  return App::lang($name);
+}
