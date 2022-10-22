@@ -73,7 +73,9 @@ class View
 
     self::$views["$hash_file.php"] = "$view.php";
 
-    $GLOBALS = $params;
+    foreach ($params as $key => $value) {
+      $GLOBALS[$key] = $value;
+    }
 
     if (! File::exists($render_file_path)) {
 
