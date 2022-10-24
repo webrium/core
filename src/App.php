@@ -5,6 +5,7 @@ namespace Webrium;
 use Webrium\Url;
 use Webrium\Debug;
 use Webrium\File;
+use Webrium\Directory;
 
 class App
 {
@@ -89,7 +90,7 @@ class App
     self::$local = $local;
   }
 
-  public static function isLocal($local)
+  public static function isLocale($local)
   {
     return ($local == self::$local) ? true : false;
   }
@@ -113,16 +114,14 @@ class App
     $arr = explode('.', $name);
     $file = $arr[0];
     $variable = $arr[1];
-
-    if (!isset(self::$lang_store[$file])) {
+    $locale = App::getLocale();
+    $index_name = "$locale.$file";
+    if (!isset(self::$lang_store[$index_name])) {
       $path = Directory::path('langs');
-      $lang = App::getLocale();
-
-      $content = include_once("$path/$lang/$file.php");
-      self::$lang_store[$file] = $content;
+      $content = include_once("$path/$locale/$file.php");
+      self::$lang_store[$index_name] = $content;
     }
 
-
-    return self::$lang_store[$file][$variable] ?? false;
+    return self::$lang_store[$index_name][$variable] ?? false;
   }
 }
