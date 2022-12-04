@@ -5,7 +5,7 @@ class Mail
 {
   private static $config=[];
 
-  public static function addConfig($name='main',$mail)
+  public static function addConfig($name, $mail)
   {
     self::$config[$name]=$mail;
   }
