@@ -1,10 +1,10 @@
 <?php
-namespace Webrium;
+namespace webrium\core;
 
-use Webrium\Debug;
-use Webrium\File;
-use Webrium\Directory;
-use Webrium\Event;
+use webrium\core\Debug;
+use webrium\core\File;
+use webrium\core\Directory;
+use webrium\core\Event;
 
 class View
 {
@@ -92,7 +92,6 @@ class View
       self::CreateBaseCode('@while',$code,'<?php while',': ?>');
 
       self::CreateBaseCode('@view',$code,'<?php echo view','; ?>');
-      self::CreateBaseCode('@lang',$code,'<?php echo lang','; ?>');
       self::CreateBaseCode('@load',$code,'<?php echo load','; ?>');
       self::CreateBaseCode('@url',$code,'<?php echo url','; ?>');
       self::CreateBaseCode('@old',$code,'<?php echo old',';?>');
