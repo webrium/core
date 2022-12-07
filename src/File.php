@@ -1,9 +1,9 @@
 <?php
-namespace Webrium;
+namespace webrium\core;
 
-use Webrium\App;
-use Webrium\Debug;
-use Webrium\Directory;
+use webrium\core\App;
+use webrium\core\Debug;
+use webrium\core\Directory;
 
 
 class File

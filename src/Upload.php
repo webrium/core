@@ -1,5 +1,7 @@
 <?php
-namespace Webrium;
+namespace webrium\core;
+
+use webrium\core\Directory;
 
 class Upload
 {

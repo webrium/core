@@ -1,8 +1,9 @@
 <?php
-namespace Webrium;
+namespace webrium\core;
 
-use Webrium\View;
-use Webrium\Event;
+use webrium\core\File;
+use webrium\core\View;
+use webrium\core\Event;
 
 class Debug
 {
@@ -30,11 +31,9 @@ class Debug
 
   public static function displayErrors($status)
   {
-    
-    ini_set('display_errors', $status);
-    ini_set('display_startup_errors', $status);
-    
     if ($status) {
+      ini_set('display_errors', $status);
+      ini_set('display_startup_errors', $status);
       error_reporting(E_ALL);
     }
 

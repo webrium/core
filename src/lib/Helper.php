@@ -1,8 +1,9 @@
 <?php
-use Webrium\App;
-use Webrium\Url;
-use Webrium\View;
-use Webrium\Directory;
+use webrium\core\App;
+use webrium\core\Url;
+use webrium\core\View;
+use webrium\core\Session;
+use webrium\core\Directory;
 
 function url($str='')
 {
@@ -27,21 +28,21 @@ function load($name,$params=[])
 function redirect($url, $statusCode = 303)
 {
    header('Location: ' . $url, true, $statusCode);
-   return new \Webrium\RequestBack;
+   return new \webrium\core\RequestBack;
 }
 
 function back(){
   header('Location: ' . $_SERVER['HTTP_REFERER']);
-  return new \Webrium\RequestBack;
+  return new \webrium\core\RequestBack;
 }
 
 function errors($name=false)
 {
-  return \Webrium\RequestBack::getError($name);
+  return \webrium\core\RequestBack::getError($name);
 }
 
 function old($name,$default=''){
-  $old = \Webrium\RequestBack::getOldParamsValues();
+  $old = \webrium\core\RequestBack::getOldParamsValues();
   if (isset($old[$name])) {
     return $old[$name];
   }
@@ -50,7 +51,7 @@ function old($name,$default=''){
 
 function message($justGetText=false)
 {
-  return \Webrium\RequestBack::getMessage($justGetText);
+  return \webrium\core\RequestBack::getMessage($justGetText);
 }
 
 
@@ -77,8 +78,4 @@ function storage_path($path='')
 function root_path($path='')
 {
   return App::rootPath()."/$path";
-}
-
-function lang($name){
-  return App::lang($name);
 }

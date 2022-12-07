@@ -1,7 +1,7 @@
 <?php
-namespace webrium;
+namespace webrium\core;
 
-use Webrium\App;
+use webrium\core\App;
 
 class Directory
 {
@@ -66,19 +66,19 @@ class Directory
   public static function initDefaultStructure()
   {
     Directory::set('app','app');
-    Directory::set('controllers','app/Controllers');
-    Directory::set('models','app/Models');
-    Directory::set('views','app/Views');
-    Directory::set('routes','app/Routes');
-    Directory::set('config','app/Config');
+    Directory::set('controllers','app/controllers');
+    Directory::set('models','app/models');
+    Directory::set('views','app/views');
+    Directory::set('routes','app/routes');
+    Directory::set('config','app/config');
 
     Directory::set('storage','storage');
-    Directory::set('storage_app','storage/App');
-    Directory::set('sessions','storage/Framework/Sessions');
-    Directory::set('render_views','storage/Framework/Views');
+    Directory::set('storage_app','storage/app');
+    Directory::set('sessions','storage/framework/sessions');
+    Directory::set('render_views','storage/framework/views');
 
-    Directory::set('logs','storage/Logs');
-    Directory::set('langs','storage/Langs');
+    Directory::set('logs','storage/logs');
+    Directory::set('langs','storage/langs');
 
     Directory::set('public','public');
   }

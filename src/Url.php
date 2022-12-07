@@ -1,5 +1,5 @@
 <?php
-namespace Webrium;
+namespace webrium\core;
 
 class Url
 {

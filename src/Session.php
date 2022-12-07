@@ -1,7 +1,7 @@
 <?php
-namespace Webrium;
+namespace webrium\core;
 
-use Webrium\Directory;
+use webrium\core\Directory;
 
 class Session
 {
