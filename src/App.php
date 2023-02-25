@@ -98,7 +98,7 @@ class App
   {
     if (self::$env == false) {
       if (File::exists(root_path('.env')) == false) {
-        throw new \Exception("Dotenv: Environment file .env not found. Create file with your environment settings at project root files", 1);
+        Debug::createError('Dotenv: Environment file .env not found. Create file with your environment settings at project root files');
       }
       $ENV_CONTENT = File::getContent(root_path('.env'));
       $lines = explode("\n", $ENV_CONTENT);
