@@ -110,12 +110,12 @@ class App
 
         self::$env[$key] = $value;
       }
+    }
 
-      if (isset(self::$env[$name])) {
-        return self::$env[$name];
-      } else {
-        return $default;
-      }
+    if (isset(self::$env[$name])) {
+      return self::$env[$name];
+    } else {
+      return $default;
     }
   }
 
