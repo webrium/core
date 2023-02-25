@@ -10,7 +10,7 @@ use Webrium\Directory;
 class App
 {
   private static $rootPath = false, $local = 'en';
-  private static $env = false;
+  private static $env = [];
 
   public static function root($dir)
   {
