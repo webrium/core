@@ -108,8 +108,13 @@ class View
       $code = str_replace('@end','?>',$code);
       $code = str_replace('@php','<?php',$code);
 
+
+      $code = preg_replace('/@(\{{2})((?:[^}{]+|(?R))*+)(\}{2})/', '@_DONOTCHANGSTART$2@_DONOTCHANGEEND',$code);
+
       self::ReplaceSpecialSymbol('{{','}}',$code,'<?php echo htmlspecialchars(','); ?>');
       self::ReplaceSpecialSymbol('{!!','!!}',$code,'<?php echo ','; ?>');
+      self::ReplaceSpecialSymbol('@_DONOTCHANGSTART','@_DONOTCHANGEEND',$code,'{{','}}');
+      
       File::putContent($render_file_path,$code);
     }
 
