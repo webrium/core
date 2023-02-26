@@ -32,12 +32,12 @@ class View
     }
   }
 
-  public static function load($view)
+  public static function loadview($view)
   {
     return self::loadPath(Directory::path('views')."/$view.php");
   }
 
-  public static function findOrginalNameByHash($hashName){
+  private static function findOrginalNameByHash($hashName){
 
     $name = basename($hashName);
 
@@ -93,7 +93,7 @@ class View
 
       self::CreateBaseCode('@view',$code,'<?php echo view','; ?>');
       self::CreateBaseCode('@lang',$code,'<?php echo lang','; ?>');
-      self::CreateBaseCode('@load',$code,'<?php echo load','; ?>');
+      self::CreateBaseCode('@loadview',$code,'<?php echo loadview','; ?>');
       self::CreateBaseCode('@url',$code,'<?php echo url','; ?>');
       self::CreateBaseCode('@old',$code,'<?php echo old',';?>');
       self::CreateBaseCode('@message',$code,'<?php echo message','; ?>');
@@ -122,7 +122,7 @@ class View
   }
 
 
-  public static function CreateBaseCode($find,&$code,$prefix,$suffix)
+  private static function CreateBaseCode($find,&$code,$prefix,$suffix)
   {
 
     $error = false;
@@ -167,7 +167,7 @@ class View
     }
   }
 
-  public static function ReplaceSpecialSymbol($start,$end,&$code,$prefix,$suffix)
+  private static function ReplaceSpecialSymbol($start,$end,&$code,$prefix,$suffix)
   {
     $code = \str_replace($start,$prefix,$code);
     $code = \str_replace($end  ,$suffix,$code);

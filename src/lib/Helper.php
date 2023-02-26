@@ -19,9 +19,9 @@ function view($name,$params=[])
   return View::render($name,$params);
 }
 
-function load($name,$params=[])
+function loadview($name,$params=[])
 {
-  return View::load($name,$params);
+  return View::loadview($name,$params);
 }
 
 function redirect($url, $statusCode = 303)
