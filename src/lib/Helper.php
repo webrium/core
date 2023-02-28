@@ -4,25 +4,30 @@ use Webrium\Url;
 use Webrium\View;
 use Webrium\Directory;
 
+
 function url($str='')
 {
   return Url::get($str);
 }
+
 
 function current_url()
 {
   return Url::current();
 }
 
+
 function view($name,$params=[])
 {
   return View::render($name,$params);
 }
 
+
 function loadview($name,$params=[])
 {
   return View::loadview($name,$params);
 }
+
 
 function redirect($url, $statusCode = 303)
 {
@@ -30,15 +35,18 @@ function redirect($url, $statusCode = 303)
    return new \Webrium\RequestBack;
 }
 
+
 function back(){
   header('Location: ' . $_SERVER['HTTP_REFERER']);
   return new \Webrium\RequestBack;
 }
 
+
 function errors($name=false)
 {
   return \Webrium\RequestBack::getError($name);
 }
+
 
 function old($name,$default=''){
   $old = \Webrium\RequestBack::getOldParamsValues();
@@ -64,21 +72,30 @@ function public_path($path='')
   return Directory::path('public')."/$path";
 }
 
+
 function app_path($path='')
 {
   return Directory::path('app')."/$path";
 }
+
 
 function storage_path($path='')
 {
   return Directory::path('storage_app')."/$path";
 }
 
+
 function root_path($path='')
 {
   return App::rootPath()."/$path";
 }
 
+
 function lang($name){
   return App::lang($name);
+}
+
+
+function env($name, $default = false){
+  return App::env($name, $default);
 }
