@@ -14,6 +14,8 @@ class View
 
     private static $list_json;
 
+    private static $in_process_file = '';
+
 
 
     /**
@@ -210,7 +212,7 @@ class View
 
         if ($error) {
             throw new \Exception(
-                "Syntax error in '$error' in " . ''
+                "Syntax error in '$error' in " . self::$in_process_file
             );
         }
     }
@@ -258,7 +260,9 @@ class View
                     continue;
                 }
 
-                
+                if(is_dir(Directory::path('render_views') . '/' . self::findHashFile($block_view_name, 'list'))){
+                    die("name : $main_name  block_view_name : '$block_view_name'  hash : $hash_name");
+                }
                 $get = file_get_contents(Directory::path('render_views') . '/' . self::findHashFile($block_view_name, 'list'));
                 $html = str_replace("$sign_block_start$main_block$sign_block_end", $get, $html);
                 
@@ -335,7 +339,10 @@ class View
                 $dir_list = self::getAll($dir . '/' . $file);
                 $list = array_merge($list, $dir_list);
             } else {
-                $list[] = $dir . '/' . $file;
+                // echo 'ex:'. pathinfo($file, PATHINFO_EXTENSION)." - $file <br>";
+                if(in_array(pathinfo($file, PATHINFO_EXTENSION), ['php', 'html'])){
+                    $list[] = $dir . '/' . $file;
+                }
             }
         }
 
@@ -343,6 +350,11 @@ class View
     }
 
 
+    public static function yyy($list){
+        foreach ($list as $key => $value) {
+            yield $value;
+        }
+    }
 
 
 
@@ -351,6 +363,7 @@ class View
      */
     private static function compile()
     {
+        ini_set('memory_limit', '200M');
 
         // To calculate the duration of generating files
         $time_start = microtime(true);
@@ -365,6 +378,7 @@ class View
         */
         $list = [];
         foreach ($files as $file) {
+            self::$in_process_file = $file;
             $result = self::codeGenerator($file);
             $result['view_name'] = str_replace($views_path, '', $result['view_name']);
             $list[$result['view_name']] = $result['hash_name'];
@@ -384,6 +398,7 @@ class View
         | Static cache files are generated with a loop over all created files
         */
         foreach ($list_file_content['list'] as $original_name => $hash_name) {
+            self::$in_process_file = $original_name;
             self::staticCacheGenerator($original_name, $hash_name);
         }
 
