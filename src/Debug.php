@@ -46,7 +46,6 @@ class Debug
 
     set_error_handler(function ($errno, $errstr, $errfile, $errline)
     {
-
      self::$ErrorFile = $errfile= View::getOrginalNameByHash($errfile);
      self::createError( "$errstr", false, $errline);
     },E_ALL);
@@ -172,7 +171,7 @@ class Debug
     $msg = "Error : $str ";
 
     if ($line) {
-      $msg.=" (".basename(self::getErrorFile())." :$line)";
+      $msg.=" (file: <b>".self::getErrorFile()."</b> line:$line)";
     }
 
     if ($file) {
