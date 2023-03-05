@@ -124,7 +124,7 @@ class View
         $html = str_replace('@end', '?>', $html);
         $html = str_replace('@php', '<?php', $html);
 
-        $code = preg_replace('/@(\{{2})((?:[^}{]+|(?R))*+)(\}{2})/', '@_DONOTCHANGSTART$2@_DONOTCHANGEEND',$html);
+        $html = preg_replace('/@(\{{2})((?:[^}{]+|(?R))*+)(\}{2})/', '@_DONOTCHANGSTART$2@_DONOTCHANGEEND',$html);
 
         self::replaceSpecialSymbol('{{', '}}', $html, '<?php echo htmlspecialchars(', '); ?>');
         self::replaceSpecialSymbol('{!!', '!!}', $html, '<?php echo ', '; ?>');
