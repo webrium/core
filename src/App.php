@@ -10,6 +10,7 @@ use Webrium\Directory;
 class App
 {
   private static $rootPath = false, $local = 'en';
+  private static $env = [];
 
   public static function root($dir)
   {
@@ -84,6 +85,40 @@ class App
 
     echo $data;
   }
+
+
+  /**
+   * Gets the value of an environment variable.
+   *
+   * @param  string  $key
+   * @param  mixed   $default
+   * @return mixed
+   */
+  public static function env($name, $default = false)
+  {
+    if (self::$env == false) {
+      if (File::exists(root_path('.env')) == false) {
+        Debug::createError('Dotenv: Environment file .env not found. Create file with your environment settings at project root files');
+      }
+      $ENV_CONTENT = File::getContent(root_path('.env'));
+      $lines = explode("\n", $ENV_CONTENT);
+
+      foreach ($lines as $line) {
+        $arr = explode("=", $line);
+        $key = trim($arr[0] ?? '');
+        $value = trim($arr[1] ?? '');
+
+        self::$env[$key] = $value;
+      }
+    }
+
+    if (isset(self::$env[$name])) {
+      return self::$env[$name];
+    } else {
+      return $default;
+    }
+  }
+
 
   public static function setLocale($local)
   {

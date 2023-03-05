@@ -67,6 +67,11 @@ class View
         }
     }
 
+    public static function loadview($view)
+    {
+      return self::includeHTML(Directory::path('views')."/$view.php");
+    }
+
     public static function setParams($array = [])
     {
         foreach ($array as $key => $value) {
@@ -98,7 +103,7 @@ class View
         self::syntaxAnalyser('@elseif', $html, '<?php elseif', ': ?>');
         self::syntaxAnalyser('@while', $html, '<?php while', ': ?>');
         self::syntaxAnalyser('@lang', $html, '<?php echo lang', '; ?>');
-        self::syntaxAnalyser('@load', $html, '<?php echo load', '; ?>');
+        self::syntaxAnalyser('@loadview', $html, '<?php echo loadview', '; ?>');
         self::syntaxAnalyser('@url', $html, '<?php echo url', '; ?>');
         self::syntaxAnalyser('@old', $html, '<?php echo old', ';?>');
         self::syntaxAnalyser('@message', $html, '<?php echo message', '; ?>');
@@ -119,8 +124,11 @@ class View
         $html = str_replace('@end', '?>', $html);
         $html = str_replace('@php', '<?php', $html);
 
+        $code = preg_replace('/@(\{{2})((?:[^}{]+|(?R))*+)(\}{2})/', '@_DONOTCHANGSTART$2@_DONOTCHANGEEND',$html);
+
         self::replaceSpecialSymbol('{{', '}}', $html, '<?php echo htmlspecialchars(', '); ?>');
         self::replaceSpecialSymbol('{!!', '!!}', $html, '<?php echo ', '; ?>');
+        self::ReplaceSpecialSymbol('@_DONOTCHANGSTART','@_DONOTCHANGEEND',$html,'{{','}}');
 
         return $html;
     }
@@ -396,11 +404,6 @@ class View
     }
 
 
-
-
-
-
-
     private static function currentJsonFile($forcePull = false)
     {
         if (self::$list_json == null || $forcePull == true) {
@@ -417,12 +420,6 @@ class View
         return self::$list_json;
     }
 
-    // public static function mm($note=''){
-    //     $memory_size = memory_get_usage();
-    //     $memory_unit = array('Bytes','KB','MB','GB','TB','PB');
-    //     // Display memory size into kb, mb etc.
-    //     echo '<br><span style="color:green;">Used Memory :'.$note.': </span>'.round($memory_size/pow(1024,($x=floor(log($memory_size,1024)))),2).' '.$memory_unit[$x]."\n<br>";
-    // }
 
     private static function findHashFile($name, $type = 'list')
     {
@@ -437,7 +434,7 @@ class View
             }
         }
 
-        return '(Not Found)';
+        return $hash_name;
     }
 
 
