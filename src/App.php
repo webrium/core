@@ -51,22 +51,21 @@ class App
     return Url::without_trailing_slash(self::$rootPath);
   }
 
-
   public static function input($name = false, $default = null)
   {
     $method = Url::method();
     $params = [];
+    $json_content_status = ($_SERVER["CONTENT_TYPE"] ?? '') == 'application/json';
 
-    if ($method == "GET") {
+    if ($json_content_status == false && ($method == 'GET' || $method == 'PUT' || $method == 'DELETE')) {
       $params = $_GET;
-    } else if ($method == "POST") {
-      if ($_SERVER["CONTENT_TYPE"] == 'application/json') {
+    } else if ($method == 'POST' || $method == 'PUT' || $method == 'DELETE') {
+      if ($json_content_status) {
         $params = json_decode(file_get_contents('php://input'), true);
       } else {
         $params = $_POST;
       }
-    } else if ($method == "PUT" || $method == "DELETE") {
-      parse_str(file_get_contents('php://input'), $params);
+
     }
 
     if ($name != false) {
