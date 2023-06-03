@@ -99,20 +99,46 @@ class File
   }
 
 
-  public static function download($path,$download_name=null)
+  
+  /**
+   * Downloads a file from the server to the client with appropriate headers and content type.
+   *
+   * @param string $file_path The path of the file to download.
+   * @param string|null $download_name The filename that will be shown in the download prompt. Defaults to the basename of the file_path if null.
+   * @return void
+   */
+  public static function download($file_path, $download_name = null)
   {
-    if ($download_name==null) {
-      $download_name=basename($path);
+    // Load FileInfo module to determine the MIME type of the file
+    $file_info = finfo_open(FILEINFO_MIME_TYPE);
+
+    if (is_file($file_path)) {
+      $file_size = filesize($file_path);
+      $download_name = $download_name ?? basename($file_path);
+
+      // Determine the content type based on the MIME type of the file
+      $content_type = finfo_file($file_info, $file_path);
+
+      // Set headers for streaming
+      header('Content-Type: ' . $content_type);
+      header('Content-Transfer-Encoding: Binary');
+      header('Content-Length: ' . $file_size);
+      header('Content-disposition: attachment; filename="' . $download_name . '"');
+
+      // Open the file and stream it to the output buffer in small chunks
+      $file = fopen($file_path, 'rb');
+      while (!feof($file)) {
+        print(fread($file, 1024 * 8));
+        ob_flush();
+        flush();
+      }
+      fclose($file);
+      exit;
+    } else {
+      echo "Error: File not found.";
     }
 
-    header("Expires: 0");
-    header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT");
-    header("Cache-Control: no-store, no-cache, must-revalidate");
-    header("Cache-Control: post-check=0, pre-check=0", false);
-    header("Pragma: no-cache");  header("Content-type: application/file");
-    header('Content-length: '.filesize($path));
-    header('Content-disposition: attachment; filename='.$download_name);
-    readfile($path);
+    finfo_close($file_info); // Close the FileInfo module
   }
 
   public static function showImage($path)
