@@ -1,101 +1,39 @@
 <?php
+
 namespace Webrium;
 
+use Error;
 use Webrium\Url;
 use Webrium\File;
+use Webrium\Debug;
 
 class Route
 {
 
-  private static $found = false;
+  private static $routes;
 
-  public static function isFound()
+
+  /**
+   * Loads route files given an array of file names.
+   *
+   * @param array $route_file_names An array of strings representing the names of route files to be loaded.
+   *                               These files must be stored in the 'Routes' directory.
+   */
+  public static function source(array $route_file_names)
   {
-    return self::$found;
-  }
 
-  public static function get($addr,$file)
-  {
-    self::check("GET",$addr,$file);
-  }
+    // Set path to the directory containing route files
+    $path = Directory::path('routes');
 
-  public static function post($addr,$file)
-  {
-    self::check("POST",$addr,$file);
-  }
+    // Loop through each route file name and attempt to load it
+    foreach ($route_file_names as $file_name) {
 
-  public static function put($addr,$file)
-  {
-    self::check("PUT",$addr,$file);
-  }
+      $result = File::runOnce("$path/$file_name");
 
-  public static function delete($addr,$file)
-  {
-    self::check("DELETE",$addr,$file);
-  }
-
-  public static function any($addr,$file)
-  {
-    self::check("ALL",$addr,$file);
-  }
-
-  public static function check($method,$addr,$file)
-  {
-    if ((Url::method()==$method || $method=='ALL')&& Url::is($addr)) {
-
-      if (is_string($file)) {
-
-        // run controller function
-        $res= self::call($file);
-
-        // route found
-        self::$found=true;
-
-        // function not found
-        if ($res['func']==false) {
-          Debug::createError($res['error_message'],$res['class_path'],false,500);
-        }
-
-      }
-      else {
-        App::ReturnData($file());
+      // If the file is not found or is unable to run, create an error message using the Debug class
+      if ($result == false) {
+        Debug::createError("Route file '$file_name' not found.");
       }
     }
-
-    if(self::isFound()){
-      die;
-    }
   }
-
-  public static function call($file)
-  {
-    $arr = explode('@',$file);
-
-    $dir = 'controllers';
-
-    if (count($arr)==2) {
-      $dir    = $arr[0];
-      $arr[0] = $arr[1];
-    }
-
-    $class_func=explode('->',$arr[0]);
-    return File::runControllerFunction($dir,$class_func[0],$class_func[1]);
-  }
-
-  public static function notFound($file=false)
-  {
-    if ( ! self::isFound()) {
-
-      if ( $file == false ) {
-        Debug::error404();
-      }
-      else if ( $file != false ) {
-        self::call($file);
-      }
-
-      die;
-
-    }
-  }
-
 }
