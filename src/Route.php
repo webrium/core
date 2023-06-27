@@ -11,8 +11,8 @@ class Route
 
   private static $routes;
   private static $route_names = [];
-
   private static $prefix = '';
+  private static $notFoundHandler = false;
 
 
   /**
@@ -40,6 +40,9 @@ class Route
   }
 
 
+
+
+
   /**
    * Add a new route to the list of routes.
    *
@@ -48,7 +51,7 @@ class Route
    * @param callable $handler The function that will handle the request for this route.
    * @param string $route_name (Optional) The name of this route. Defaults to empty string.
    */
-  private static function add(string $method, string $url, string $handler, string $route_name = '')
+  private static function add(string $method, string $url, string|callable $handler, string $route_name = '')
   {
 
     $url = trim($url, '/');
@@ -74,7 +77,7 @@ class Route
    * 
    * @return void
    */
-  public static function get(string $url, string $handler, string $route_name = '')
+  public static function get(string $url, string|callable $handler, string $route_name = '')
   {
     self::add('GET', $url, $handler, $route_name);
   }
@@ -88,7 +91,7 @@ class Route
    * 
    * @return void
    */
-  public static function post(string $url, string $handler, string $route_name = '')
+  public static function post(string $url, string|callable $handler, string $route_name = '')
   {
     self::add('POST', $url, $handler, $route_name);
   }
@@ -102,7 +105,7 @@ class Route
    * 
    * @return void
    */
-  public static function put(string $url, string $handler, string $route_name = '')
+  public static function put(string $url, string|callable $handler, string $route_name = '')
   {
     self::add('PUT', $url, $handler, $route_name);
   }
@@ -116,7 +119,7 @@ class Route
    * 
    * @return void
    */
-  public static function delete(string $url, string $handler, string $route_name = '')
+  public static function delete(string $url, string|callable $handler, string $route_name = '')
   {
     self::add('DELETE', $url, $handler, $route_name);
   }
@@ -163,8 +166,118 @@ class Route
 
 
 
+  /**
+   * Compares a route and a URI to check if they match.
+   * If the route contains parameters, it extracts them from the URI
+   * and returns them as an array of key-value pairs.
+   *
+   * @param string $route The route to compare with the URI.
+   * @param string $uri The URI to compare with the route.
+   * @return array An associative array containing a boolean 'match' value,
+   *               indicating whether the route and URI matched, and an array of
+   *               route parameters with their corresponding values (if any).
+   */
+  private static function matchRoute($route, $uri)
+  {
+
+    $match = false;
+    $params = [];
+
+    $uri = trim($uri, '/');
+    $route = trim($route, '/');
+
+    if ($route === $uri) {
+      $match = true;
+    } else {
+      $parameter_sign = strpos($route, '{');
+
+      if ($parameter_sign !== false) {
+
+        $route_array = explode('/', $route);
+        $uri_array = explode('/', $uri);
+
+        if (count($uri_array) == count($route_array)) {
+
+          $match = true;
+
+          foreach ($route_array as $key => $route_str) {
+
+
+            $sign = strpos($route_str, '{');
+
+            if ($sign !== false) {
+              $param_name =  trim(str_replace(['{', '}'], ['', ''], $route_str));
+              $param_value = $uri_array[$key];
+              $params[$param_name] = $param_value;
+            } else if ($route_str != $uri_array[$key]) {
+              $match = false;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return ['match' => $match, 'params' => $match ? $params : []];
+  }
+
+
+  public static function setNotFoundRoutePage(callable|string $handler){
+    self::$notFoundHandler = $handler;
+  }
+
+
+  public static function pageNotFound(){
+    Debug::error404();
+
+    if(self::$notFoundHandler == false){
+      echo 'Page not found';
+    }
+    else if(is_string(self::$notFoundHandler)){
+      return self::runController(self::$notFoundHandler);
+    }
+    else if(is_callable(self::$notFoundHandler)){
+      return App::ReturnData(call_user_func(self::$notFoundHandler));
+    }
+  }
+
+  public static function runController(string $handler_string, $params=[]){
+    $class_func=explode('->',$handler_string);
+    return File::executeControllerMethod('controllers', $class_func[0], $class_func[1], $params);
+  }
+
+
   public static function run()
   {
-    die(json_encode(self::$routes));
+
+    $uri = Url::uri();
+
+    $find_match_route = [];
+    $find = false;
+
+    foreach(self::$routes as $route){
+      $result = self::matchRoute($route[1], $uri);
+
+      if($result['match']){
+        $find = true;
+        $find_match_route = $route;
+        $find_match_route['params'] = $result['params'];
+        break;
+      }
+    }
+
+    if($find){
+
+      if(is_string($find_match_route[2])){
+        self::runController($find_match_route[2], $find_match_route['params']);
+      }
+      else if(is_callable($find_match_route[2])){
+        App::ReturnData($find_match_route[2](...$find_match_route['params']));
+      }
+    }
+    else{
+      self::pageNotFound();
+    }
+
   }
 }
