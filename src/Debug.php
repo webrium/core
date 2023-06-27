@@ -193,7 +193,6 @@ class Debug
   public static function error404()
   {
     self::errorCode(404);
-    echo "404";
   }
 
   public static function writErrorsStatus($status)
