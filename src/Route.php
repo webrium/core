@@ -12,6 +12,8 @@ class Route
 
   private static $routes;
 
+  private static $prefix = '';
+
 
   /**
    * Loads route files given an array of file names.
@@ -36,4 +38,57 @@ class Route
       }
     }
   }
+
+
+  private static function add($method, $url, $handler)
+  {
+
+    $url = trim($url, '/');
+
+    if(!empty(self::$prefix)){
+      $url = self::$prefix."/$url";
+    }
+
+    self::$routes[] = [$method, $url, $handler];
+  }
+
+
+  public static function get($url, $handler)
+  {
+    self::add('GET', $url, $handler);
+    return static::class;
+  }
+
+  public static function post($url, $handler)
+  {
+    self::add('POST', $url, $handler);
+  }
+
+  public static function put($url, $handler)
+  {
+    self::add('PUT', $url, $handler);
+  }
+
+  public static function delete($url, $handler)
+  {
+    self::add('DELETE', $url, $handler);
+  }
+
+
+  public static function group($prefix, callable $callback)
+  {
+      $prefix = trim($prefix, '/');
+
+      self::$prefix = $prefix;
+
+      call_user_func($callback);
+
+      self::$prefix = '';
+  }
+
+
+  public static function run(){
+    die(json_encode(self::$routes));
+  }
+
 }
