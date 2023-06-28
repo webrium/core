@@ -9,7 +9,7 @@ use Webrium\Debug;
 class Route
 {
 
-  private static $routes=[];
+  private static $routes = [];
   private static $route_names = [];
   private static $prefix = '';
   private static $notFoundHandler = false;
@@ -132,11 +132,11 @@ class Route
 
 
   /**
-   * Group a series of routes under a common prefix.
+   * Group routes with a common prefix and middleware.
    *
-   * @param string $prefix Prefix to group the routes under.
-   * @param callable $callback Function to execute the grouped routes.
-   * 
+   * @param string|array $handler The route handler or an array of options. If a string, it will be considered as the prefix. If an array, it can contain both 'prefix' and 'middleware' options.
+   * @param callable $callback The callback function to be executed when the middleware status is true.
+   *
    * @return void
    */
   public static function group(string|array $handler, callable $callback)
@@ -154,16 +154,13 @@ class Route
 
       if (isset($handler['middleware'])) {
 
-        if(is_callable($handler['middleware'])){
+        if (is_callable($handler['middleware'])) {
           $middleware_status = $handler['middleware']();
-        }
-        else if(is_string($handler['middleware'])){
+        } else if (is_string($handler['middleware'])) {
           $middleware_status = call_user_func($handler['middleware']);
-        }
-        else if(is_bool($handler['middleware'])){
+        } else if (is_bool($handler['middleware'])) {
           $middleware_status = $handler['middleware'];
-        }
-        else{
+        } else {
           Debug::createError("Invalid middleware handler");
         }
       }
@@ -318,9 +315,5 @@ class Route
     } else {
       self::pageNotFound();
     }
-  }
-
-  private static function runRoute()
-  {
   }
 }
