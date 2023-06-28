@@ -125,7 +125,10 @@ class Route
   }
 
 
-
+  public static function any(string $url, string|callable $handler, string $route_name = '')
+  {
+    self::add('ANY', $url, $handler, $route_name);
+  }
 
 
   /**
