@@ -139,15 +139,45 @@ class Route
    * 
    * @return void
    */
-  public static function group(string $prefix, callable $callback)
+  public static function group(string|array $handler, callable $callback)
   {
-    $prefix = trim($prefix, '/');
 
-    self::$prefix = $prefix;
+    $prefix = '';
+    $middleware_status = true;
 
-    call_user_func($callback);
+    if (is_string($handler)) {
+      $prefix = $handler;
+    } else if (is_array($handler)) {
+      if (isset($handler['prefix'])) {
+        $prefix = $handler['prefix'];
+      }
 
-    self::$prefix = '';
+      if (isset($handler['middleware'])) {
+
+        if(is_callable($handler['middleware'])){
+          $middleware_status = $handler['middleware']();
+        }
+        else if(is_string($handler['middleware'])){
+          $middleware_status = call_user_func($handler['middleware']);
+        }
+        else if(is_bool($handler['middleware'])){
+          $middleware_status = $handler['middleware'];
+        }
+        else{
+          Debug::createError("Invalid middleware handler");
+        }
+      }
+    }
+
+    if ($middleware_status) {
+      $prefix = trim($prefix, '/');
+
+      self::$prefix = $prefix;
+
+      call_user_func($callback);
+
+      self::$prefix = '';
+    }
   }
 
 
@@ -288,5 +318,9 @@ class Route
     } else {
       self::pageNotFound();
     }
+  }
+
+  private static function runRoute()
+  {
   }
 }
