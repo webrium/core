@@ -9,7 +9,7 @@ use Webrium\Debug;
 class Route
 {
 
-  private static $routes;
+  private static $routes=[];
   private static $route_names = [];
   private static $prefix = '';
   private static $notFoundHandler = false;
