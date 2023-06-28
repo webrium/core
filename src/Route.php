@@ -9,7 +9,7 @@ use Webrium\Debug;
 class Route
 {
 
-  private static $routes;
+  private static $routes = [];
   private static $route_names = [];
   private static $prefix = '';
   private static $notFoundHandler = false;
@@ -132,22 +132,49 @@ class Route
 
 
   /**
-   * Group a series of routes under a common prefix.
+   * Group routes with a common prefix and middleware.
    *
-   * @param string $prefix Prefix to group the routes under.
-   * @param callable $callback Function to execute the grouped routes.
-   * 
+   * @param string|array $handler The route handler or an array of options. If a string, it will be considered as the prefix. If an array, it can contain both 'prefix' and 'middleware' options.
+   * @param callable $callback The callback function to be executed when the middleware status is true.
+   *
    * @return void
    */
-  public static function group(string $prefix, callable $callback)
+  public static function group(string|array $handler, callable $callback)
   {
-    $prefix = trim($prefix, '/');
 
-    self::$prefix = $prefix;
+    $prefix = '';
+    $middleware_status = true;
 
-    call_user_func($callback);
+    if (is_string($handler)) {
+      $prefix = $handler;
+    } else if (is_array($handler)) {
+      if (isset($handler['prefix'])) {
+        $prefix = $handler['prefix'];
+      }
 
-    self::$prefix = '';
+      if (isset($handler['middleware'])) {
+
+        if (is_callable($handler['middleware'])) {
+          $middleware_status = $handler['middleware']();
+        } else if (is_string($handler['middleware'])) {
+          $middleware_status = call_user_func($handler['middleware']);
+        } else if (is_bool($handler['middleware'])) {
+          $middleware_status = $handler['middleware'];
+        } else {
+          Debug::createError("Invalid middleware handler");
+        }
+      }
+    }
+
+    if ($middleware_status) {
+      $prefix = trim($prefix, '/');
+
+      self::$prefix = $prefix;
+
+      call_user_func($callback);
+
+      self::$prefix = '';
+    }
   }
 
 
@@ -234,20 +261,20 @@ class Route
   }
 
 
-  public static function pageNotFound()
+  private static function pageNotFound()
   {
     Debug::error404();
 
     if (self::$notFoundHandler == false) {
       echo 'Page not found';
     } else if (is_string(self::$notFoundHandler)) {
-      return self::runController(self::$notFoundHandler);
+      return self::executeControllerMethod(self::$notFoundHandler);
     } else if (is_callable(self::$notFoundHandler)) {
       return App::ReturnData(call_user_func(self::$notFoundHandler));
     }
   }
 
-  public static function runController(string $handler_string, $params = [])
+  public static function executeControllerMethod(string $handler_string, $params = [])
   {
     $class_func = explode('->', $handler_string);
     return File::executeControllerMethod('controllers', $class_func[0], $class_func[1], $params);
@@ -281,7 +308,7 @@ class Route
     if ($find) {
 
       if (is_string($find_match_route[2])) {
-        self::runController($find_match_route[2], $find_match_route['params']);
+        self::executeControllerMethod($find_match_route[2], $find_match_route['params']);
       } else if (is_callable($find_match_route[2])) {
         App::ReturnData($find_match_route[2](...$find_match_route['params']));
       }
