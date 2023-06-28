@@ -188,7 +188,7 @@ class Url
   public static function ConfirmUrl()
   {
     $trailing_slash = self::has_trailing_slash(self::current());
-
+    
     if ($trailing_slash && self::current() != self::main().'/') {
       Url::redirect_without_trailing_slash(self::current(true));
     }

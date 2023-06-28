@@ -40,62 +40,35 @@ class File
     }
   }
 
-  public static function runControllerFunction($dir_name,$class,$func)
+  public static function executeControllerMethod($dir_name,$class_name,$method_name, $params=[])
   {
-    $status =['start_exec_time'=>microtime(true)];
+
 
     $dir = Directory::get($dir_name);
 
-    $n = "$dir\\$class";
+    $class = "$dir\\$class_name";
 
-    $n=str_replace('/','\\',$n);
+    $class=str_replace('/','\\',$class);
 
-    $controller =new $n;
+    $controller =new $class;
+
 
     if (method_exists($controller,'__init')) {
-      $status['init']=true;
-    }
-    else {
-      $status['init']=false;
+      $controller->__init();
     }
 
-    if (method_exists($controller,$func)) {
-      $status['func']=true;
+
+    if (method_exists($controller,$method_name)) {
+      App::ReturnData($controller->{$method_name}(...$params));
     }
     else {
-      $status['func']=false;
-      $status['error_message']="function $func not found in $n";
-      $status['class_path']="$n.php";
+      Debug::createError("Method $method_name not found in $class","$class.php");
     }
+
 
     if (method_exists($controller,'__end')) {
-      $status['end']=true;
+      $controller->__end();
     }
-    else {
-      $status['end']=false;
-    }
-
-
-    if ($status['func']) {
-
-      if ($status['init']) {
-        $controller->__init();
-      }
-
-      if ($status['func']) {
-        App::ReturnData($controller->{$func}());
-        $status['exec']=true;
-      }
-
-      if ($status['end']) {
-        $controller->__end();
-      }
-
-    }
-
-    $status['end_exec_time']=microtime(true);
-
-    return $status;
   }
 
 
