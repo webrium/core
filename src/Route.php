@@ -125,6 +125,9 @@ class Route
   }
 
 
+
+
+
   /**
    * Group a series of routes under a common prefix.
    *
@@ -222,27 +225,28 @@ class Route
   }
 
 
-  public static function setNotFoundRoutePage(callable|string $handler){
+  public static function setNotFoundRoutePage(callable|string $handler)
+  {
     self::$notFoundHandler = $handler;
   }
 
 
-  public static function pageNotFound(){
+  public static function pageNotFound()
+  {
     Debug::error404();
 
-    if(self::$notFoundHandler == false){
+    if (self::$notFoundHandler == false) {
       echo 'Page not found';
-    }
-    else if(is_string(self::$notFoundHandler)){
+    } else if (is_string(self::$notFoundHandler)) {
       return self::runController(self::$notFoundHandler);
-    }
-    else if(is_callable(self::$notFoundHandler)){
+    } else if (is_callable(self::$notFoundHandler)) {
       return App::ReturnData(call_user_func(self::$notFoundHandler));
     }
   }
 
-  public static function runController(string $handler_string, $params=[]){
-    $class_func=explode('->',$handler_string);
+  public static function runController(string $handler_string, $params = [])
+  {
+    $class_func = explode('->', $handler_string);
     return File::executeControllerMethod('controllers', $class_func[0], $class_func[1], $params);
   }
 
@@ -254,30 +258,32 @@ class Route
 
     $find_match_route = [];
     $find = false;
+    $method = Url::method();
 
-    foreach(self::$routes as $route){
-      $result = self::matchRoute($route[1], $uri);
+    foreach (self::$routes as $route) {
 
-      if($result['match']){
-        $find = true;
-        $find_match_route = $route;
-        $find_match_route['params'] = $result['params'];
-        break;
+      if ($method == $route[0] || $route[0] == 'ANY') {
+
+        $result = self::matchRoute($route[1], $uri);
+
+        if ($result['match']) {
+          $find = true;
+          $find_match_route = $route;
+          $find_match_route['params'] = $result['params'];
+          break;
+        }
       }
     }
 
-    if($find){
+    if ($find) {
 
-      if(is_string($find_match_route[2])){
+      if (is_string($find_match_route[2])) {
         self::runController($find_match_route[2], $find_match_route['params']);
-      }
-      else if(is_callable($find_match_route[2])){
+      } else if (is_callable($find_match_route[2])) {
         App::ReturnData($find_match_route[2](...$find_match_route['params']));
       }
-    }
-    else{
+    } else {
       self::pageNotFound();
     }
-
   }
 }
