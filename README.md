@@ -1,4 +1,10 @@
 
+<div align="center">
+
+[![Latest Stable Version](http://poser.pugx.org/webrium/core/v?style=for-the-badge)](https://packagist.org/packages/webrium/core) [![Total Downloads](http://poser.pugx.org/webrium/core/downloads?style=for-the-badge)](https://packagist.org/packages/webrium/core) [![Latest Unstable Version](http://poser.pugx.org/webrium/core/v/unstable?style=for-the-badge)](https://packagist.org/packages/webrium/core) [![License](http://poser.pugx.org/webrium/core/license?style=for-the-badge)](https://packagist.org/packages/webrium/core)
+
+</div>
+
 ## Create Micro Web App By webrium-core
 
 1) install core
