@@ -13,6 +13,8 @@ class Route
   private static $route_names = [];
   private static $prefix = '';
   private static $notFoundHandler = false;
+  private static $middlewares = [];
+  private static $middleware_index = -1;
 
 
   /**
@@ -60,7 +62,7 @@ class Route
       $url = self::$prefix . "/$url";
     }
 
-    self::$routes[] = [$method, "/$url", $handler];
+    self::$routes[] = [$method, "/$url", $handler, self::$middleware_index];
 
     if (empty($route_name) == false) {
       self::$route_names[$route_name] = count(self::$routes) - 1;
@@ -153,16 +155,8 @@ class Route
       }
 
       if (isset($handler['middleware'])) {
-
-        if (is_callable($handler['middleware'])) {
-          $middleware_status = $handler['middleware']();
-        } else if (is_string($handler['middleware'])) {
-          $middleware_status = call_user_func($handler['middleware']);
-        } else if (is_bool($handler['middleware'])) {
-          $middleware_status = $handler['middleware'];
-        } else {
-          Debug::createError("Invalid middleware handler");
-        }
+        self::$middlewares[] = $handler['middleware'];
+        self::$middleware_index = count(self::$middlewares) - 1;
       }
     }
 
@@ -174,8 +168,11 @@ class Route
       call_user_func($callback);
 
       self::$prefix = '';
+      self::$middleware_index = -1;
     }
   }
+
+
 
 
   /**
@@ -305,15 +302,68 @@ class Route
       }
     }
 
+
     if ($find) {
 
-      if (is_string($find_match_route[2])) {
-        self::executeControllerMethod($find_match_route[2], $find_match_route['params']);
-      } else if (is_callable($find_match_route[2])) {
-        App::ReturnData($find_match_route[2](...$find_match_route['params']));
+      $confirm_access = self::processMiddleware($find_match_route);
+
+      if ($confirm_access) {
+        if (is_string($find_match_route[2])) {
+          self::executeControllerMethod($find_match_route[2], $find_match_route['params']);
+        } else if (is_callable($find_match_route[2])) {
+          App::ReturnData($find_match_route[2](...$find_match_route['params']));
+        }
+      } else {
+        self::pageNotFound();
       }
     } else {
       self::pageNotFound();
     }
+  }
+
+
+  private static function processMiddleware($find_match_route): bool
+  {
+
+    $confirm_access = true;
+
+    if ($find_match_route[3] > -1) {
+
+      $middlewares = self::$middlewares[$find_match_route[3]];
+
+      if (is_array($middlewares)) {
+
+        foreach ($middlewares as $middleware) {
+
+          $confirm_access = self::executeMiddleware($middleware);
+
+          if ($confirm_access == false) {
+            break;
+          }
+        }
+      } else {
+        $confirm_access = self::executeMiddleware($middlewares);
+      }
+    }
+
+    return $confirm_access;
+  }
+
+
+  private static function executeMiddleware($middleware): bool
+  {
+    $middleware_status = false;
+
+    if (is_callable($middleware)) {
+      $middleware_status = $middleware();
+    } else if (is_string($middleware)) {
+      $middleware_status = call_user_func($middleware);
+    } else if (is_bool($middleware)) {
+      $middleware_status = $middleware;
+    } else {
+      Debug::createError("Invalid middleware handler");
+    }
+
+    return $middleware_status;
   }
 }
