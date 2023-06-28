@@ -261,20 +261,20 @@ class Route
   }
 
 
-  public static function pageNotFound()
+  private static function pageNotFound()
   {
     Debug::error404();
 
     if (self::$notFoundHandler == false) {
       echo 'Page not found';
     } else if (is_string(self::$notFoundHandler)) {
-      return self::runController(self::$notFoundHandler);
+      return self::executeControllerMethod(self::$notFoundHandler);
     } else if (is_callable(self::$notFoundHandler)) {
       return App::ReturnData(call_user_func(self::$notFoundHandler));
     }
   }
 
-  public static function runController(string $handler_string, $params = [])
+  public static function executeControllerMethod(string $handler_string, $params = [])
   {
     $class_func = explode('->', $handler_string);
     return File::executeControllerMethod('controllers', $class_func[0], $class_func[1], $params);
@@ -308,7 +308,7 @@ class Route
     if ($find) {
 
       if (is_string($find_match_route[2])) {
-        self::runController($find_match_route[2], $find_match_route['params']);
+        self::executeControllerMethod($find_match_route[2], $find_match_route['params']);
       } else if (is_callable($find_match_route[2])) {
         App::ReturnData($find_match_route[2](...$find_match_route['params']));
       }
