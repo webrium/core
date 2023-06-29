@@ -5,7 +5,17 @@
 
 </div>
 
-## Create Micro Web App By webrium-core
+## Webrium Core
+
+Webrium Core has a set of features that make site development simpler and faster. Core is used to develop the Webrium framework, but if needed, all or part of its features can be used in other projects.
+Webrium Core includes facilities such as routes, file upload and download, session management, etc
+
+
+### Documentation :
+
+ - [Route Class Documentation](https://github.com/webrium/core/wiki/Route-Class-Documentation)
+ - [Session Class Documentation](https://github.com/webrium/core/wiki/Session-Class-Documentation)
+
 
 1) install core
 ```
