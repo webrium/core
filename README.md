@@ -17,6 +17,7 @@ Webrium Core includes facilities such as routes, file upload and download, sessi
  - [Session Class Documentation](https://github.com/webrium/core/wiki/Session-Class-Documentation)
  - [JWT (JSON Web Token) Documentation](https://github.com/webrium/core/wiki/JWT-Documentation)
  - [Hash Class Documentation](https://github.com/webrium/core/wiki/Hash-Class-Documentation)
+ - [HTTP Class Documentation](https://github.com/webrium/core/wiki/HTTP-Class-Documentation)
 
 1) install core
 ```
