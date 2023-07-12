@@ -278,7 +278,7 @@ class Route
   }
 
 
-  public static function run()
+ public static function run($slice = 0)
   {
 
     $uri = Url::uri();
@@ -286,8 +286,10 @@ class Route
     $find_match_route = [];
     $find = false;
     $method = Url::method();
+    $latest_index = $slice;
 
-    foreach (self::$routes as $route) {
+    foreach (array_slice(self::$routes, $slice) as $route) {
+      $latest_index++;
 
       if ($method == $route[0] || $route[0] == 'ANY') {
 
@@ -307,15 +309,17 @@ class Route
 
       $confirm_access = self::processMiddleware($find_match_route);
 
-      if ($confirm_access) {
-        if (is_string($find_match_route[2])) {
-          self::executeControllerMethod($find_match_route[2], $find_match_route['params']);
-        } else if (is_callable($find_match_route[2])) {
-          App::ReturnData($find_match_route[2](...$find_match_route['params']));
-        }
-      } else {
-        self::pageNotFound();
+      if ($confirm_access == false) {
+        self::run($latest_index);
+        return;
       }
+
+      if (is_string($find_match_route[2])) {
+        self::executeControllerMethod($find_match_route[2], $find_match_route['params']);
+      } else if (is_callable($find_match_route[2])) {
+        App::ReturnData($find_match_route[2](...$find_match_route['params']));
+      }
+
     } else {
       self::pageNotFound();
     }
