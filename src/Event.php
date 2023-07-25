@@ -3,6 +3,7 @@ namespace Webrium;
 
 class Event {
   private static $instance;
+  private $hooks=[];
 
   public static function on($hook_name, $fn){
     $instance = self::get_instance();
