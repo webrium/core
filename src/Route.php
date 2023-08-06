@@ -53,7 +53,7 @@ class Route
    * @param callable $handler The function that will handle the request for this route.
    * @param string $route_name (Optional) The name of this route. Defaults to empty string.
    */
-  private static function add(string $method, string $url, string|callable $handler, string $route_name = '')
+  private static function add(string $method, string $url, $handler, string $route_name = '')
   {
 
     $url = trim($url, '/');
@@ -79,7 +79,7 @@ class Route
    * 
    * @return void
    */
-  public static function get(string $url, string|callable $handler, string $route_name = '')
+  public static function get(string $url, $handler, string $route_name = '')
   {
     self::add('GET', $url, $handler, $route_name);
   }
@@ -93,7 +93,7 @@ class Route
    * 
    * @return void
    */
-  public static function post(string $url, string|callable $handler, string $route_name = '')
+  public static function post(string $url, $handler, string $route_name = '')
   {
     self::add('POST', $url, $handler, $route_name);
   }
@@ -107,7 +107,7 @@ class Route
    * 
    * @return void
    */
-  public static function put(string $url, string|callable $handler, string $route_name = '')
+  public static function put(string $url, $handler, string $route_name = '')
   {
     self::add('PUT', $url, $handler, $route_name);
   }
@@ -121,13 +121,13 @@ class Route
    * 
    * @return void
    */
-  public static function delete(string $url, string|callable $handler, string $route_name = '')
+  public static function delete(string $url, $handler, string $route_name = '')
   {
     self::add('DELETE', $url, $handler, $route_name);
   }
 
 
-  public static function any(string $url, string|callable $handler, string $route_name = '')
+  public static function any(string $url, $handler, string $route_name = '')
   {
     self::add('ANY', $url, $handler, $route_name);
   }
@@ -141,7 +141,7 @@ class Route
    *
    * @return void
    */
-  public static function group(string|array $handler, callable $callback)
+  public static function group($handler, callable $callback)
   {
 
     $prefix = '';
@@ -181,15 +181,16 @@ class Route
    * @param string $route_name Name of the route to get the URL for.
    * 
    * @return string URL of the named route.
-   * @throws Exception If the named route does not exist.
+   * @throws \Exception If the named route does not exist.
    */
-  public static function getRouteByName(string $route_name): string
+  public static function getRouteByName(string $route_name)
   {
     if (isset(self::$route_names[$route_name])) {
       $route = self::$routes[self::$route_names[$route_name]];
       return $route[1];
     } else {
       Debug::createError("Route with name '{$route_name}' not found.");
+      return '';
     }
   }
 
@@ -252,7 +253,7 @@ class Route
   }
 
 
-  public static function setNotFoundRoutePage(callable|string $handler)
+  public static function setNotFoundRoutePage($handler)
   {
     self::$notFoundHandler = $handler;
   }
@@ -326,7 +327,7 @@ class Route
   }
 
 
-  private static function processMiddleware($find_match_route): bool
+  private static function processMiddleware($find_match_route)
   {
 
     $confirm_access = true;
