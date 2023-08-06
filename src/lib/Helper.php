@@ -3,6 +3,7 @@ use Webrium\App;
 use Webrium\Url;
 use Webrium\View;
 use Webrium\Directory;
+use Webrium\Route;
 
 
 function url($str='')
@@ -23,9 +24,9 @@ function view($name,$params=[])
 }
 
 
-function loadview($name,$params=[])
+function loadview($name)
 {
-  return View::loadview($name,$params);
+  return View::loadview($name);
 }
 
 
@@ -98,4 +99,9 @@ function lang($name){
 
 function env($name, $default = false){
   return App::env($name, $default);
+}
+
+
+function route($name){
+  return Route::getRouteByName($name);
 }
