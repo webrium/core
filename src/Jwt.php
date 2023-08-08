@@ -78,7 +78,7 @@ class Jwt
             $isValid = $this->base64UrlEncode($data) === $signatureProvided;
         }
 
-        return $isValid ? $this->decodeToken($payload) : false;
+        return $isValid ? Jwt::decodeToken($payload) : false;
     }
 
      /**
@@ -87,7 +87,7 @@ class Jwt
      * @param string $payload The payload to decode
      * @return array The decoded payload
      */
-    private function decodeToken($payload)
+    private static function decodeToken($payload)
     {
         return json_decode(base64_decode($payload), true);
     }
@@ -104,5 +104,18 @@ class Jwt
         $base64 = strtr($base64Url, '-_', '+/');
         $text = base64_decode($base64);
         return $text;
+    }
+
+
+    public static function getPayload($jwt_token){
+        $jwtArr = explode('.', $jwt_token);
+
+        if (count($jwtArr) !== 3) {
+            return false;
+        }
+
+        $payload = $jwtArr[1];
+
+        return self::decodeToken($payload);
     }
 }
