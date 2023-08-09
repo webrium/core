@@ -87,7 +87,7 @@ class Jwt
      */
     private static function decodeToken($payload)
     {
-        return json_decode(base64_decode($payload), true);
+        return json_decode(base64_decode($payload));
     }
 
     private function base64UrlEncode($text)
