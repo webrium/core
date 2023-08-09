@@ -18,7 +18,7 @@ class Jwt
         $this->algorithm = $algorithm;
     }
 
- /**
+    /**
      * Generate a JWT token
      *
      * @param array $payload The payload to include in the token
@@ -45,7 +45,7 @@ class Jwt
         return $jwt;
     }
 
- /**
+    /**
      * Verify a JWT token
      *
      * @param string $jwt The JWT token to verify
@@ -66,8 +66,6 @@ class Jwt
         $base64UrlHeader = $header;
         $base64UrlPayload = $payload;
 
-        $signature = $this->base64UrlDecode($signatureProvided);
-
         $token = $base64UrlHeader . '.' . $base64UrlPayload;
 
         $data = hash_hmac($this->algorithm, $token, $this->secretKey, true);
@@ -81,7 +79,7 @@ class Jwt
         return $isValid ? Jwt::decodeToken($payload) : false;
     }
 
-     /**
+    /**
      * Decode the payload of a JWT token
      *
      * @param string $payload The payload to decode
@@ -107,7 +105,14 @@ class Jwt
     }
 
 
-    public static function getPayload($jwt_token){
+    /**
+     * Get the payload from a JWT token
+     *
+     * @param string $jwt_token The JWT token
+     * @return array|false The decoded payload if the token is valid, false otherwise
+     */
+    public static function getPayload($jwt_token)
+    {
         $jwtArr = explode('.', $jwt_token);
 
         if (count($jwtArr) !== 3) {
