@@ -154,9 +154,7 @@ class File
   {
     if(self::exists($path)){
 
-      \unlink($path);
-
-      return true;
+      return \unlink($path);
     }
 
     return false;
