@@ -4,11 +4,20 @@ namespace Webrium;
 class Upload
 {
 
-  protected $multipleFiles = false,$inputName,$files,$savePath,$saveName=false,$status;
+  protected $multipleFiles = false;
+  protected $inputName;
+  protected $files;
+  protected $savePath;
+  protected $saveName = false;
+  protected $status;
 
-  protected $errors=[] , $maxSize=false,$limitExtention=false,$limitType=false;
+  protected $errors = [];
+  protected $maxSize = false;
+  protected $limitExtention = false;
+  protected $limitType = false;
 
-  function __construct($name=false)
+
+  function __construct($name = false)
   {
     if ($name) {
       $this->inputName = $name;
@@ -16,39 +25,38 @@ class Upload
       if ($this->exists() && is_array($this->input()['name'])) {
         $this->multipleFiles = true;
         $this->generateFilesArray();
-      }
-      else if($this->exists() && is_string($this->input()['name'])){
+      } else if ($this->exists() && is_string($this->input()['name'])) {
         $this->files = [$this->input()];
       }
     }
   }
 
-  public function initSingleFile($inputName,$files,$_class)
+  public function initSingleFile($inputName, $files, $_class)
   {
     $this->inputName = $inputName;
     $this->files = $files;
 
     if ($_class->maxSize) {
-      $this->maxSize($_class->maxSize['number'],$_class->maxSize['errorText']);
+      $this->maxSize($_class->maxSize['number'], $_class->maxSize['errorText']);
     }
 
     if ($_class->limitExtention) {
-      $this->allowExtensions($_class->limitExtention['array'],$_class->limitExtention['errorText']);
+      $this->allowExtensions($_class->limitExtention['array'], $_class->limitExtention['errorText']);
     }
 
     if ($_class->limitType) {
-      $this->allowTypes($_class->limitType['array'],$_class->limitType['errorText']);
+      $this->allowTypes($_class->limitType['array'], $_class->limitType['errorText']);
     }
   }
 
   public function input()
   {
-    return $_FILES[$this->inputName]??false;
+    return $_FILES[$this->inputName] ?? false;
   }
 
   public function first()
   {
-    return $this->files[0]??false;
+    return $this->files[0] ?? false;
   }
 
   public function getArray()
@@ -64,7 +72,7 @@ class Upload
 
   public function exists()
   {
-    if ( $this->has($this->inputName) && $this->input() && ! empty($this->input()['name']) ) {
+    if ($this->has($this->inputName) && $this->input() && !empty($this->input()['name'])) {
       return true;
     }
 
@@ -75,11 +83,9 @@ class Upload
   {
     if ($this->multipleFiles) {
       return count($this->input()['name']);
-    }
-    elseif ($this->exists() && is_string($this->input()['name'])) {
+    } elseif ($this->exists() && is_string($this->input()['name'])) {
       return 1;
-    }
-    else {
+    } else {
       return 0;
     }
   }
@@ -90,7 +96,7 @@ class Upload
 
     foreach ($this->input() as $key => $array) {
 
-      foreach ($array as $index=> $string) {
+      foreach ($array as $index => $string) {
         $files[$index][$key] = $string;
       }
 
@@ -98,7 +104,7 @@ class Upload
     return $this->files = $files;
   }
 
-  public function each($func=false)
+  public function each($func = false)
   {
     $array = [];
 
@@ -108,12 +114,11 @@ class Upload
       $one = new Upload;
 
 
-      $one->initSingleFile($this->inputName,[$file],$this);
+      $one->initSingleFile($this->inputName, [$file], $this);
 
       if ($func) {
         $func($one);
-      }
-      else {
+      } else {
         $array[] = $one;
       }
 
@@ -135,25 +140,23 @@ class Upload
   public function extension()
   {
     $name = $this->getClientOriginalName();
-    $arr = explode('.',$name);
+    $arr = explode('.', $name);
     return end($arr);
   }
 
-  public function name($name=false,$setCustomExtention=false)
+  public function name($name = false, $setCustomExtention = false)
   {
     if ($name) {
       $this->saveName = $name;
 
       if (!$setCustomExtention) {
-        $this->saveName .='.'.$this->extension();
-      }
-      else {
+        $this->saveName .= '.' . $this->extension();
+      } else {
         $this->saveName .= ".$setCustomExtention";
       }
 
       return $this;
-    }
-    else {
+    } else {
       return $this->saveName;
     }
   }
@@ -182,8 +185,7 @@ class Upload
   {
     if (isset($this->getErrors()[0])) {
       return $this->getErrors()[0];
-    }
-    else {
+    } else {
       return '';
     }
   }
@@ -194,20 +196,19 @@ class Upload
     return $this->first()['type'];
   }
 
-  public function path($savePath=false)
+  public function path($savePath = false)
   {
     if ($savePath) {
       $this->savePath = $savePath;
       return $this;
-    }
-    else {
+    } else {
       return $this->savePath;
     }
   }
 
   public function hashName()
   {
-    $this->name( \md5_file($this->tmpName()) );
+    $this->name(\md5_file($this->tmpName()));
     return $this;
   }
 
@@ -215,20 +216,20 @@ class Upload
   {
 
     // make dir if not exsits
-    if(! \is_dir($this->savePath)){
-      mkdir($this->savePath,0777, true);
+    if (!\is_dir($this->savePath)) {
+      mkdir($this->savePath, 0777, true);
     }
 
-    if (! $this->validate()) {
+    if (!$this->validate()) {
       $this->status = false;
       return;
     }
 
-    if (! $this->name()) {
+    if (!$this->name()) {
       $this->saveName = $this->getClientOriginalName();
     }
 
-    $full_path = "$this->savePath/".$this->name();
+    $full_path = "$this->savePath/" . $this->name();
 
     $this->status = \move_uploaded_file(
       $this->tmpName(),
@@ -248,11 +249,11 @@ class Upload
    * @param  int    $number    Amount in kilobytes
    * @param  string $errorText
    */
-  public function maxSize(int $number,$errorText='File size is more than allowed')
+  public function maxSize(int $number, $errorText = 'File size is more than allowed')
   {
-    $this->maxSize = ['number'=>$number,'errorText'=>$errorText];
+    $this->maxSize = ['number' => $number, 'errorText' => $errorText];
 
-    if (($this->size()/1000) > $number) {
+    if (($this->size() / 1000) > $number) {
       $this->replaceStr($errorText);
       $this->errors[] = $errorText;
     }
@@ -264,11 +265,11 @@ class Upload
    * @param  array $array  example ['png','jpg']
    * @param  string $errorText
    */
-  public function allowExtensions($array,$errorText='File type is not allowed')
+  public function allowExtensions($array, $errorText = 'File type is not allowed')
   {
-    $this->limitExtention = ['array'=>$array,'errorText'=>$errorText];
+    $this->limitExtention = ['array' => $array, 'errorText' => $errorText];
 
-    if (! in_array($this->extension(),$array)) {
+    if (!in_array($this->extension(), $array)) {
       $this->replaceStr($errorText);
       $this->errors[] = $errorText;
     }
@@ -281,11 +282,11 @@ class Upload
    * @param  array $array  example ['image/jpeg']
    * @param  string $errorText
    */
-  public function allowTypes($array,$errorText='File type is not allowed')
+  public function allowTypes($array, $errorText = 'File type is not allowed')
   {
-    $this->limitType = ['array'=>$array,'errorText'=>$errorText];
+    $this->limitType = ['array' => $array, 'errorText' => $errorText];
 
-    if (! in_array($this->type(),$array)) {
+    if (!in_array($this->type(), $array)) {
       $this->replaceStr($errorText);
       $this->errors[] = $errorText;
     }
@@ -300,22 +301,21 @@ class Upload
   public function validate()
   {
 
-    if (! $this->checkWritable()) {
+    if (!$this->checkWritable()) {
       $this->errors[] = 'There is no permission to write the file';
     }
 
-    if ($this->errors && count($this->errors)>0 ) {
+    if ($this->errors && count($this->errors) > 0) {
       return false;
-    }
-    else {
+    } else {
       return true;
     }
   }
 
   public function replaceStr(&$text)
   {
-    $text = str_replace('@name',$this->getClientOriginalName(),$text);
-    $text = str_replace('@size',$this->size(),$text);
-    $text = str_replace('@maxSize',$this->maxSize['number'],$text);
+    $text = str_replace('@name', $this->getClientOriginalName(), $text);
+    $text = str_replace('@size', $this->size(), $text);
+    $text = str_replace('@maxSize', $this->maxSize['number'], $text);
   }
 }
