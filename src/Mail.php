@@ -14,5 +14,8 @@ class Mail
     return self::$config[$name];
   }
 
+  public static function new($name = 'main'){
+    return self::get($name);
+  }
 
 }
