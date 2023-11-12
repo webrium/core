@@ -7,270 +7,245 @@ use Webrium\App;
 
 class FormValidation
 {
-  private $currentName;
-  private $fakeName=false; 
-  private $currentValue;
-  private $errors=[];
-  private $list=[];
-  private $type;
 
-  private $messages;
+  private array $form_data_params;
+  private array $validation_messages;
+
+  private array $validation_data;
+
+  private string $current_field;
+
+  private array $error_list = [];
 
 
-
-  public function field($name,$translation=false)
+  function __construct($form_data_params = null)
   {
-    $this->currentName  = $name;
-    $this->fakeName = $translation;
+    if ($form_data_params === null) {
+      $this->form_data_params = input();
+    } else {
+      $this->form_data_params = $form_data_params;
 
-    $this->currentValue = input($name,null);
-
-    $message_path = Directory::path('langs').'/'.App::getLocale().'/validation.php';
-    if (File::exists($message_path)) {
-      $this->messages = include $message_path;
-    }
-    else {
-      $this->messages = false;
     }
 
-    if ($this->fakeName==false) {
-      $this->fakeName = $this->messages['attributes'][$name]??false;
-    }
+    $this->loadValidationMessages();
+  }
 
-    $this->type = false;
+
+
+
+  private function loadValidationMessages()
+  {
+
+    $validation_message_path = Directory::path('langs') . '/' . App::getLocale() . '/validation.php';
+
+    if (File::exists($validation_message_path)) {
+      $this->validation_messages = include_once $validation_message_path;
+    } else {
+      throw new \Exception("File not found in path '$validation_message_path'", 1);
+    }
+  }
+
+  public function field($name, $translation = null)
+  {
+
+    $this->current_field = $name;
+
+    $this->validation_data[$name] = [
+      'name' => $name,
+      't_name' => $translation,
+      'rules' => [],
+    ];
 
     return $this;
   }
 
-  public function numeric($message=false)
+  private function addNewRule($type, $message, $value1 = null, $value2 = null)
   {
-    $this->type = 'numeric';
-
-    if (! \is_numeric($this->currentValue)) {
-      $message = $this->initMessage($this->messages['numeric'],$message);
-      $this->addError($message);
-    }
+    $this->validation_data[$this->current_field]['rules'][] = ['type' => $type, 'custom_message' => $message, 'value1' => $value1, 'value2' => $value2];
     return $this;
   }
 
-  public function string($message=false)
+  public function numeric($custom_message = null)
   {
-    $this->type = 'string';
-
-    if (! \is_string($this->currentValue) || \is_numeric($this->currentValue)) {
-      $message = $this->initMessage($this->messages['string'],$message);
-      $this->addError($message);
-    }
-    return $this;
+    return $this->addNewRule('numeric', $custom_message);
   }
 
-  public function min($min,$message=false)
+  public function integer($custom_message = null)
   {
-    if (is_string($this->currentValue) && (! $this->type || $this->type =='string' )) {
-      $message = $this->initMessage($this->messages['min']['string'],$message);
-      $message = \str_replace(':min',$min,$message);
+    return $this->addNewRule('integer', $custom_message);
+  }
 
-      if (\mb_strlen($this->currentValue) < $min ) {
-        $this->addError($message);
+  public function string($custom_message = null)
+  {
+    return $this->addNewRule('string', $custom_message);
+  }
+
+  public function min($min_value, $custom_message = null)
+  {
+    return $this->addNewRule('min', $custom_message, $min_value);
+  }
+
+  public function max($max_value, $custom_message = null)
+  {
+    return $this->addNewRule('max', $custom_message, $max_value);
+  }
+
+  public function required($custom_message)
+  {
+    return $this->addNewRule('required', $custom_message);
+  }
+
+
+  public function email($custom_message = false)
+  {
+    return $this->addNewRule('max', $custom_message);
+
+  }
+
+  public function url($custom_message = false)
+  {
+    return $this->addNewRule('max', $custom_message);
+
+  }
+
+  public function mac($custom_message = false)
+  {
+    return $this->addNewRule('max', $custom_message);
+  }
+
+  public function boolean($custom_message = false)
+  {
+    return $this->addNewRule('boolean', $custom_message);
+  }
+
+  public function array($custom_message = false)
+  {
+    return $this->addNewRule('array', $custom_message);
+  }
+
+  public function between($min, $max, $custom_message = null)
+  {
+    return $this->addNewRule('between', $custom_message, $min, $max);
+  }
+
+  public function file($custom_message = null)
+  {
+    return $this->addNewRule('file', $custom_message);
+  }
+
+  public function size(int $size_number, $custom_message)
+  {
+    return $this->addNewRule('size', $custom_message, $size_number);
+  }
+
+  private function process()
+  {
+
+    foreach ($this->validation_data as $data) {
+
+      $name = $data['name'];
+      $t_name = $data['t_name'];
+      $rules = $data['rules'];
+
+      // var_dump($data);
+      echo "Run on : $name roules count:" . count($rules) . "\n";
+
+
+      foreach ($rules as $rule) {
+        $method_exec_name = '_check_' . $rule['type'];
+        $result = $this->$method_exec_name($rule, $name);
+
+        echo "name:$name type:" . $rule['type'] . " value1:".$rule['value1']." result:".json_encode($result)." \n---------\n";
       }
-    }
-    elseif (\is_numeric($this->currentValue) && (! $this->type || $this->type =='numeric' ) ) {
-      $message = $this->initMessage($this->messages['min']['numeric'],$message);
-      $message = \str_replace(':min',$min,$message);
 
-      if ( $this->currentValue < $min ) {
-        $this->addError($message);
-      }
     }
-    elseif (is_array($this->currentValue) && (! $this->type || $this->type =='array' )) {
-      $message = $this->initMessage($this->messages['min']['array'],$message);
-      $message = \str_replace(':min',$min,$message);
 
-      if ( count($this->currentValue) < $min ) {
-        $this->addError($message);
-      }
+  }
+
+
+  private function getParam($name)
+  {
+    return $this->form_data_params[$name] ?? null;
+  }
+
+  private function _check_string($rule, $name)
+  {
+    $value = $this->getParam($name);
+    return (is_string($value) && (gettype($value) == 'string'));
+  }
+
+  private function _check_numeric($rule, $name)
+  {
+    return is_numeric($this->getParam($name));
+  }
+
+  private function _check_integer($rule, $name)
+  {
+    return gettype($this->getParam($name))=='integer';
+  }
+
+  private function _check_min($rule, $name)
+  {
+    $value = $this->getParam($name);
+    $min = $rule['value1'];
+    $status = true;
+    $type  = gettype($value);
+    echo "\ntype value:" .gettype($value)." min: $min  value: $value\n";
+
+    if($type  == 'string' && \mb_strlen($value) < $min){
+      $status = false;
+    }
+    else if($type  == 'integer' && $value < $min){
+      $status = false;
+    }
+    else if(is_array($value) && count($value) < $min){
+      $status = false;
+    }
+
+    return $status;
+  }
+
+
+  private function _check_max($rule, $name)
+  {
+    $value = $this->getParam($name);
+    $max = $rule['value1'];
+    $status = true;
+    $type  = gettype($value);
+
+    echo "\n type value:" .gettype($value)." min: $max  value: $value\n";
+
+    if($type == 'string' && \mb_strlen($value) > $max){
+      $status = false;
+    }
+    else if($type == 'integer' && $value > $max){
+      $status = false;
+    }
+    else if(is_array($value) && count($value) > $max){
+      $status = false;
+    }
+
+    return $status;
+  }
+
+  private function filter($value, $FILTER)
+  {
+    if (!filter_var($value, $FILTER)) {
+
     }
 
     return $this;
   }
 
-  public function max($max,$message=false)
-  {
-
-    if (is_string($this->currentValue) && (! $this->type || $this->type =='string' ) ) {
-      $message = $this->initMessage($this->messages['max']['string'],$message);
-      $message = \str_replace(':max',$max,$message);
-
-      if (\mb_strlen($this->currentValue) > $max ) {
-        $this->addError($message);
-      }
-    }
-    elseif (\is_numeric($this->currentValue) && (! $this->type || $this->type =='numeric' )) {
-      $message = $this->initMessage($this->messages['max']['numeric'],$message);
-      $message = \str_replace(':max',$max,$message);
-
-      if ( $this->currentValue > $max ) {
-        $this->addError($message);
-      }
-    }
-
-    elseif (is_array($this->currentValue) && (! $this->type || $this->type =='array' )) {
-      $message = $this->initMessage($this->messages['max']['array'],$message);
-      $message = \str_replace(':max',$max,$message);
-
-      if ( count($this->currentValue) > $max ) {
-        $this->addError($message);
-      }
-    }
-
-    return $this;
-  }
-
-  public function required($message=false)
-  {
-    $message = $this->initMessage($this->messages['required'],$message);
-
-    if (empty($this->currentValue)) {
-      $this->addError($message);
-    }
-    return $this;
-  }
-
-  public function accepted($message=false)
-  {
-    $message = $this->initMessage($this->messages['accepted'],$message);
-
-    if (input($this->currentName,false)==false) {
-      $this->addError($message);
-    }
-    return $this;
-  }
-
-  public function confirmed($name_2,$message=false)
-  {
-    $message = $this->initMessage($this->messages['confirmed'],$message);
-
-    if ($this->currentValue != input($name_2)) {
-      $this->addError($message);
-    }
-    return $this;
-  }
-
-  public function email($message=false)
-  {
-    $this->usePHPFilter($this->messages['email'],$message,FILTER_VALIDATE_EMAIL);
-    return $this;
-  }
-
-  public function url($message=false)
-  {
-    $this->usePHPFilter($this->messages['url'],$message,FILTER_VALIDATE_URL);
-    return $this;
-  }
-
-  public function mac($message=false)
-  {
-    $this->usePHPFilter($this->messages['mac'],$message,FILTER_VALIDATE_MAC);
-    return $this;
-  }
-
-
-  public function usePHPFilter($cmessage,$message,$FILTER)
-  {
-    if(! filter_var($this->currentValue, $FILTER)) {
-      $message = $this->initMessage($cmessage,$message);
-      $this->addError($message);
-    }
-
-    return $this;
-  }
-
-  public function addError($error){
-    $error  = \str_replace('@field',$this->currentName,$error);
-    $this->errors[$this->currentName][] = $error;
-    $this->list[] = $error;
-    return $this;
-  }
-
-  public function getErrors(){
-    return $this->errors;
-  }
-
-  public function error()
-  {
-    $error = new GetError;
-    $error->set($this->errors,$this->list);
-    return $error;
-  }
-
-  public function autoCheck()
-  {
-
-    if ($this->isValid()==false) {
-      back()->withError($this->error()->all())->withInput()->die();
-    }
-  }
 
   public function isValid()
   {
-    if (count($this->getErrors())==0) {
-      return true;
-    }
-    return false;
+    return $this->process();
   }
 
-  private function initMessage($text,$customMessage=false)
+  public function test()
   {
-    if ($customMessage) {
-      $text = $customMessage;
-    }
-
-    $text = \str_replace(':attribute',($this->fakeName?$this->fakeName:$this->currentName),$text);
-
-    if ($this->fakeName) {
-      $text = \str_replace($this->currentName,$this->fakeName,$text);
-    }
-
-    return $text;
+    return $this->validation_data;
   }
 
-}
-
-class GetError{
-
-  protected $array;
-  protected $list;
-
-  public function set($array,$list)
-  {
-    $this->array = $array;
-    $this->list  = $list;
-
-    return $this;
-  }
-
-  public function all()
-  {
-    return $this->list;
-  }
-
-  public function withFields()
-  {
-    return $this->array;
-  }
-
-  public function first()
-  {
-    if (isset($this->list[0])) {
-      return $this->list[0];
-    }
-    else {
-      return false;
-    }
-  }
-
-  public function asString($separator="\n")
-  {
-    return \implode($separator,$this->all());
-  }
 }
