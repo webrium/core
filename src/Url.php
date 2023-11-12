@@ -33,12 +33,12 @@ class Url
 
   public static function domain()
   {
-    return $_SERVER['HTTP_HOST'];
+    return $_SERVER['HTTP_HOST']??'';
   }
 
   public static function method()
   {
-    return $_SERVER['REQUEST_METHOD'];
+    return $_SERVER['REQUEST_METHOD']??'';
   }
 
   public static function home()
