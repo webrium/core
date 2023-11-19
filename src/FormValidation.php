@@ -143,12 +143,21 @@ class FormValidation
   public function url($custom_message = false)
   {
     return $this->addNewRule('url', $custom_message);
+  }
 
+  public function domain($custom_message = false)
+  {
+    return $this->addNewRule('domain', $custom_message);
   }
 
   public function mac($custom_message = false)
   {
-    return $this->addNewRule('max', $custom_message);
+    return $this->addNewRule('mac', $custom_message);
+  }
+
+  public function ip($custom_message = false)
+  {
+    return $this->addNewRule('ip', $custom_message);
   }
 
   public function boolean($custom_message = false)
@@ -278,11 +287,46 @@ class FormValidation
     return [$status, ['email'],];
   }
 
+  
+
   private function _check_url()
   {
-    $status = $this->filter($this->getCurrentValue(), FILTER_VALIDATE_URL);
+    $status = (!$this->filter($this->getCurrentValue(), FILTER_VALIDATE_URL)===false);
     return [$status, ['url'],];
   }
+
+  private function _check_domain()
+  {
+
+    $url = $this->getCurrentValue();
+    $domain = str_replace('https://', '', $url);
+    $domain = str_replace('http://', '', $domain);
+
+    // Define a regular expression pattern for a valid domain name
+    $pattern = '/^(?!\-)(?:(?:[a-zA-Z\d][a-zA-Z\d\-]{0,61})?[a-zA-Z\d]\.){1,126}(?!\d+)[a-zA-Z\d]{1,63}$/';
+    
+    // Use preg_match to check if the domain matches the pattern
+    if (preg_match($pattern, $domain)) {
+      $status= true;
+    } else {
+      $status= false;
+    }
+   
+    return [$status, ['url'],];
+  }
+
+  private function _check_mac()
+  {
+    $status = $this->filter($this->getCurrentValue(), FILTER_VALIDATE_MAC);
+    return [$status, ['mac'],];
+  }
+
+  private function _check_ip()
+  {
+    $status = $this->filter($this->getCurrentValue(), FILTER_VALIDATE_IP);
+    return [$status, ['mac'],];
+  }
+
 
   private function filter($value, $FILTER)
   {
