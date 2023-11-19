@@ -6,7 +6,7 @@ use Webrium\FormValidation;
 final class FormValidationTest extends TestCase
 {
 
-    public function testCheckEmailField(){
+    public function testCheckEmailValidation(){
 
         $array = [
             'email'=>'fdsfdsajklfas',
@@ -31,10 +31,10 @@ final class FormValidationTest extends TestCase
         $this->assertTrue($form->isValid());
     }
 
-    public function testCheckUrlField(){
+    public function testCheckUrlValidation(){
 
         $array = [
-            'site_url'=>'https://google.com/',
+            'site_url'=>'https://google.com',
         ];
 
         $form = new FormValidation($array);
@@ -42,5 +42,40 @@ final class FormValidationTest extends TestCase
         $form->field('site_url')->url();
 
         $this->assertTrue($form->isValid());
+
+
+        $array = [
+            'site_url'=>'httpgoogle.com',
+        ];
+
+        $form = new FormValidation($array);
+
+        $form->field('site_url')->url();
+
+        $this->assertFalse($form->isValid());
+    }
+
+    public function testCheckDomainValidation(){
+
+        $array = [
+            'site_url'=>'https://google.com',
+        ];
+
+        $form = new FormValidation($array);
+
+        $form->field('site_url')->domain();
+
+        $this->assertTrue($form->isValid());
+
+
+        $array = [
+            'site_url'=>'https://google',
+        ];
+
+        $form = new FormValidation($array);
+
+        $form->field('site_url')->domain();
+
+        $this->assertFalse($form->isValid());
     }
 }
