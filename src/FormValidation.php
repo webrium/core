@@ -73,25 +73,32 @@ class FormValidation
   private function addError($validation_result, $rule)
   {
     $message = $this->generateErrorMessage($validation_result, $rule);
-    $this->error_list[] = [$this->current_field => $message];
+    // echo("\n\n error message : $message \n\n");
+    $this->error_list[] = ['field'=> $this->current_field ,'message'=> $message];
+  }
+
+
+  public function getFirstError(){
+    return $this->error_list[0]??false;
   }
 
   private function generateErrorMessage($validation_result, $rule): string
   {
-    // die(json_encode( $this->getValidationErrorMessage($validation_result[1])));
     if ($rule['custom_message'] == false) {
       $message = $this->getValidationErrorMessage($validation_result[1]);
     } else {
       $message = $rule['custom_message'];
     }
 
-    // die('me:'.$message);
     $data = $this->validation_data[$this->current_field];
     $name = $data['name'];
     $t_name = $data['t_name'];
 
-    // die("data:".json_encode($data));
     $message = str_replace(':attribute', $t_name ?? $name, $message);
+
+    foreach($validation_result[2]??[] as $key=> $value){
+      $message = str_replace(':'.$key, $value, $message);
+    }
 
     return $message;
   }
@@ -99,7 +106,10 @@ class FormValidation
   private function getValidationErrorMessage(array $array)
   {
     if (count($array) == 1) {
-      return $this->validation_messages[$array[0]] ?? null;
+      return FormValidation::$validation_messages[$array[0]] ?? null;
+    }
+    else if(count($array)==2){
+      return FormValidation::$validation_messages[$array[0]][$array[1]] ?? null;
     }
   }
 
@@ -233,12 +243,12 @@ class FormValidation
 
   private function _check_numeric($rule, $name)
   {
-    return is_numeric($this->getParam($name));
+    return [is_numeric($this->getParam($name)),['numeric']];
   }
 
   private function _check_integer($rule, $name)
   {
-    return gettype($this->getParam($name)) == 'integer';
+    return [gettype($this->getParam($name)) == 'integer',['integer']];
   }
 
   private function _check_min($rule, $name)
@@ -260,7 +270,7 @@ class FormValidation
       $error_message_array = ['min', 'array'];
     }
 
-    return [$status, $error_message_array];
+    return [$status, $error_message_array,['min'=>$min]];
   }
 
   private function _check_max($rule, $name)
@@ -269,16 +279,21 @@ class FormValidation
     $max = $rule['value1'];
     $status = true;
     $type = gettype($value);
+    $error_message_array = [];
+
 
     if ($type == 'string' && \mb_strlen($value) > $max) {
       $status = false;
+      $error_message_array = ['max', 'string'];
     } else if ($type == 'integer' && $value > $max) {
       $status = false;
+      $error_message_array = ['max', 'integer'];
     } else if (is_array($value) && count($value) > $max) {
       $status = false;
+      $error_message_array = ['max', 'array'];
     }
 
-    return $status;
+    return [$status, $error_message_array, ['max'=>$max]];
   }
 
   private function _check_email()

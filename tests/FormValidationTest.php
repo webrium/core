@@ -78,4 +78,164 @@ final class FormValidationTest extends TestCase
 
         $this->assertFalse($form->isValid());
     }
+
+    public function testCheckMinAndMaxStringLength(){
+        $array = [
+            'name'=>'BE',
+        ];
+
+        $form = new FormValidation($array);
+
+        $form->field('name')->min(3);
+
+        $is_valid = $form->isValid();
+        $message = $form->getFirstError();
+
+        $this->assertFalse($is_valid,$message['message']??'');
+
+
+        $array = [
+            'name'=>'BEN',
+            'mobile'=>'09999999990',
+
+        ];
+
+        $form = new FormValidation($array);
+
+        $form->field('name')->min(3)->max(3);
+        $form->field('mobile')->min(11)->max(11);
+
+        $is_valid = $form->isValid();
+        $message = $form->getFirstError();
+
+        $this->assertTrue($is_valid,$message['message']??'');
+
+
+    }
+
+
+    public function testCheckMinAndMaxIntegerLength(){
+
+
+        $array = [
+            'age'=>15,
+        ];
+
+        $form = new FormValidation($array);
+
+        $form->field('age')->min(18);
+
+        $is_valid = $form->isValid();
+
+        $this->assertFalse($is_valid);
+
+
+
+        $array = [
+            'age'=>18,
+        ];
+
+        $form = new FormValidation($array);
+
+        $form->field('age')->min(18)->max(30);
+
+        $is_valid = $form->isValid();
+
+        $this->assertTrue($is_valid);
+
+
+
+        $array = [
+            'age'=>19,
+        ];
+
+        $form = new FormValidation($array);
+
+        $form->field('age')->max(18);
+
+        $is_valid = $form->isValid();
+
+        $this->assertFalse($is_valid);
+    }
+
+    public function testCheckMinAndMaxArrayLength(){
+        $array = [
+            'category'=>['cat', 'car'],
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('category')->min(3)->isValid();
+
+        $this->assertFalse($is_valid);
+
+        $array = [
+            'category'=>['cat', 'car'],
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('category')->min(2)->max(5)->isValid();
+
+        $this->assertTrue($is_valid);
+
+        $array = [
+            'category'=>['cat', 'car','dog'],
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('category')->min(1)->max(2)->isValid();
+
+        $this->assertFalse($is_valid);
+    }
+
+
+
+    public function testCheckIntegerAndNumericType(){
+        $array = [
+            'age'=>'19',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('age')->integer()->isValid();
+
+        $this->assertFalse($is_valid);
+
+
+        $array = [
+            'age'=>19,
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('age')->integer()->isValid();
+
+        $this->assertTrue($is_valid);
+
+
+        $array = [
+            'age'=>'s44',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('age')->numeric()->isValid();
+
+        $this->assertFalse($is_valid);
+
+
+        $array = [
+            'age'=>'44',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('age')->numeric()->isValid();
+
+        $this->assertTrue($is_valid);
+    }
+
+
 }
