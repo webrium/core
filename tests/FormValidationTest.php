@@ -79,6 +79,54 @@ final class FormValidationTest extends TestCase
         $this->assertFalse($form->isValid());
     }
 
+    public function testCheckMacValidation(){
+
+        $array = [
+            'mac'=>'00-B0-D0-63-C2-26',
+        ];
+
+        $form = new FormValidation($array);
+
+        $form->field('mac')->mac();
+
+        $this->assertTrue($form->isValid());
+
+
+        $array = [
+            'mac'=>'00-B0-D0-63-C2-2',
+        ];
+
+        $form = new FormValidation($array);
+
+        $form->field('mac')->mac();
+
+        $this->assertFalse($form->isValid());
+    }
+
+    public function testCheckIpValidation(){
+
+        $array = [
+            'ip'=>'8.8.8.8',
+        ];
+
+        $form = new FormValidation($array);
+
+        $form->field('ip')->ip();
+
+        $this->assertTrue($form->isValid());
+
+
+        $array = [
+            'ip'=>'8.8.8.266',
+        ];
+
+        $form = new FormValidation($array);
+
+        $form->field('ip')->ip();
+
+        $this->assertFalse($form->isValid());
+    }
+
     public function testCheckMinAndMaxStringLength(){
         $array = [
             'name'=>'BE',
