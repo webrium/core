@@ -1,0 +1,19 @@
+<phpunit
+        colors="true"
+        bootstrap="./tests/config.php"
+        convertErrorsToExceptions="true"
+        convertNoticesToExceptions="true"
+        convertWarningsToExceptions="true"
+        stopOnError="true"
+        stopOnFailure="false"
+        stopOnIncomplete="false"
+        stopOnSkipped="false"
+        stopOnRisky="false"
+>
+    <testsuites>
+        <testsuite name="Your tests">
+            <file>./tests/FormValidationTest.php</file> 
+
+        </testsuite>
+    </testsuites>
+</phpunit>
