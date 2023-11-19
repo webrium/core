@@ -237,5 +237,38 @@ final class FormValidationTest extends TestCase
         $this->assertTrue($is_valid);
     }
 
+    public function testCheckStringValidation(){
+        $array = [
+            'name'=>'BEN',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('name')->string()->isValid();
+
+        $this->assertTrue($is_valid);
+
+
+        $array = [
+            'name'=>333,
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('name')->string()->isValid();
+
+        $this->assertFalse($is_valid);
+
+        $array = [
+            'name'=>[],
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('name')->string()->isValid();
+
+        $this->assertFalse($is_valid);
+    }
+
 
 }

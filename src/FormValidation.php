@@ -238,7 +238,7 @@ class FormValidation
   private function _check_string($rule, $name)
   {
     $value = $this->getParam($name);
-    return (is_string($value) && (gettype($value) == 'string'));
+    return [(is_string($value) && (gettype($value) == 'string')),['string']];
   }
 
   private function _check_numeric($rule, $name)
@@ -296,24 +296,24 @@ class FormValidation
     return [$status, $error_message_array, ['max'=>$max]];
   }
 
-  private function _check_email()
+  private function _check_email($rule, $name)
   {
-    $status = $this->filter($this->getCurrentValue(), FILTER_VALIDATE_EMAIL);
+    $status = $this->filter($this->getParam($name), FILTER_VALIDATE_EMAIL);
     return [$status, ['email'],];
   }
 
   
 
-  private function _check_url()
+  private function _check_url($rule, $name)
   {
-    $status = (!$this->filter($this->getCurrentValue(), FILTER_VALIDATE_URL)===false);
+    $status = (!$this->filter($this->getParam($name), FILTER_VALIDATE_URL)===false);
     return [$status, ['url'],];
   }
 
-  private function _check_domain()
+  private function _check_domain($rule, $name)
   {
 
-    $url = $this->getCurrentValue();
+    $url = $this->getParam($name);
     $domain = str_replace('https://', '', $url);
     $domain = str_replace('http://', '', $domain);
 
@@ -327,19 +327,19 @@ class FormValidation
       $status= false;
     }
    
-    return [$status, ['url'],];
+    return [$status, ['url']];
   }
 
-  private function _check_mac()
+  private function _check_mac($rule, $name)
   {
-    $status = $this->filter($this->getCurrentValue(), FILTER_VALIDATE_MAC);
-    return [$status, ['mac'],];
+    $status = $this->filter($this->getParam($name), FILTER_VALIDATE_MAC);
+    return [$status, ['mac']];
   }
 
-  private function _check_ip()
+  private function _check_ip($rule, $name)
   {
-    $status = $this->filter($this->getCurrentValue(), FILTER_VALIDATE_IP);
-    return [$status, ['mac'],];
+    $status = $this->filter($this->getParam($name), FILTER_VALIDATE_IP);
+    return [$status, ['mac']];
   }
 
 
