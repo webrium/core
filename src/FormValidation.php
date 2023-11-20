@@ -55,6 +55,7 @@ class FormValidation
     $this->current_field = $name;
 
     $this->validation_data[$name] = [
+      'has_value'=>false,
       'name' => $name,
       't_name' => $translation,
       'rules' => [],
@@ -221,12 +222,20 @@ class FormValidation
     foreach ($this->validation_data as $data) {
 
       $name = $data['name'];
-      $t_name = $data['t_name'];
       $rules = $data['rules'];
 
+      if(isset($this->form_data_params[$name]) && empty($this->form_data_params[$name]) ==false ){
+        $this->validation_data[$name]['has_value'] = true;
+      }
 
 
       foreach ($rules as $rule) {
+        
+        if($this->validation_data[$name]['has_value'] == false && $rule['type'] != 'required'){
+          // die('rule');
+          break;
+        }
+
         $method_exec_name = '_check_' . $rule['type'];
 
         $result = $this->$method_exec_name($rule, $name);
@@ -255,11 +264,8 @@ class FormValidation
   }
 
   public function _check_required($rule, $name){
-    $status = true;
-    if(isset($this->form_data_params[$name]) == false || empty($this->form_data_params[$name]) ){
-      $status = false;
-    }
-    return [$status, ['required']];
+    // echo "\ncheck ".$this->validation_data[$name]['has_value']."\n";
+    return [$this->validation_data[$name]['has_value']??false, ['required']];
   }
 
   private function _check_string($rule, $name):array
@@ -280,9 +286,12 @@ class FormValidation
 
   public function _check_digits($rule, $name):array
   {
-    $digits = $rule['value1'];
-    $status = (strlen((string) $this->getParam($name)) == $digits);
-    return [$status, ['digits'], ['digits' => $digits]];
+    $status = true;
+    if($this->getParam($name)!=null){
+      $digits = $rule['value1']??null;
+      $status = (strlen((string) $this->getParam($name)) == $digits);
+    }
+    return [$status, ['digits'], ['digits' => $digits??'']];
   }
 
   public function _check_digits_between($rule, $name):array

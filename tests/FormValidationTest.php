@@ -317,15 +317,16 @@ final class FormValidationTest extends TestCase
 
         $this->assertFalse($is_valid);
 
+
         $array = [
-            'name' => [],
+            'name' => '333',
         ];
 
         $form = new FormValidation($array);
 
         $is_valid = $form->field('name')->string()->isValid();
 
-        $this->assertFalse($is_valid);
+        $this->assertTrue($is_valid);
     }
 
 
@@ -471,6 +472,17 @@ final class FormValidationTest extends TestCase
         $is_valid = $form->field('username')->required()->isValid();
 
         $this->assertTrue($is_valid);
+    }
+
+
+    public function testCheckIgnoreConditionsWhenNoValueIsPassed(){
+        $array = [
+        ];
+
+        $form = new FormValidation($array);
+        $form->field('username')->digits(10);
+        $is_valid = $form->isValid();
+        $this->assertTrue($is_valid, $form->getFirstError()['message']??'');
     }
 
 
