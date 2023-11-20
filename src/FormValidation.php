@@ -33,7 +33,7 @@ class FormValidation
 
 
 
-  private function loadValidationMessages()
+  private function loadValidationMessages():void
   {
 
     $validation_message_path = Directory::path('langs') . '/' . App::getLocale() . '/validation.php';
@@ -126,6 +126,11 @@ class FormValidation
   public function string($custom_message = null)
   {
     return $this->addNewRule('string', $custom_message);
+  }
+
+  public function digits(int $digits, $custom_message = null)
+  {
+    return $this->addNewRule('digits', $custom_message, $digits);
   }
 
   public function min($min_value, $custom_message = null)
@@ -249,6 +254,12 @@ class FormValidation
   private function _check_integer($rule, $name)
   {
     return [gettype($this->getParam($name)) == 'integer',['integer']];
+  }
+
+  public function _check_digits($rule, $name){
+    $digits = $rule['value1'];
+    $status = (strlen((string)$this->getParam($name)) == $digits);
+    return[$status, ['digits'], ['digits'=>$digits]];
   }
 
   private function _check_min($rule, $name)

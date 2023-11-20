@@ -319,4 +319,28 @@ final class FormValidationTest extends TestCase
     }
 
 
+    public function testDigitsValidation(){
+        $array = [
+            'mobile'=>'09999999999',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('mobile')->digits(11)->isValid();
+
+        $this->assertTrue($is_valid);
+
+
+        $array = [
+            'mobile'=>'0999999999',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('mobile')->digits(11)->isValid();
+
+        $this->assertFalse($is_valid);
+    }
+
+
 }
