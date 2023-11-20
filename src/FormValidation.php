@@ -33,7 +33,7 @@ class FormValidation
 
 
 
-  private function loadValidationMessages():void
+  private function loadValidationMessages(): void
   {
 
     $validation_message_path = Directory::path('langs') . '/' . App::getLocale() . '/validation.php';
@@ -74,12 +74,13 @@ class FormValidation
   {
     $message = $this->generateErrorMessage($validation_result, $rule);
     // echo("\n\n error message : $message \n\n");
-    $this->error_list[] = ['field'=> $this->current_field ,'message'=> $message];
+    $this->error_list[] = ['field' => $this->current_field, 'message' => $message];
   }
 
 
-  public function getFirstError(){
-    return $this->error_list[0]??false;
+  public function getFirstError()
+  {
+    return $this->error_list[0] ?? false;
   }
 
   private function generateErrorMessage($validation_result, $rule): string
@@ -96,8 +97,8 @@ class FormValidation
 
     $message = str_replace(':attribute', $t_name ?? $name, $message);
 
-    foreach($validation_result[2]??[] as $key=> $value){
-      $message = str_replace(':'.$key, $value, $message);
+    foreach ($validation_result[2] ?? [] as $key => $value) {
+      $message = str_replace(':' . $key, $value, $message);
     }
 
     return $message;
@@ -107,8 +108,7 @@ class FormValidation
   {
     if (count($array) == 1) {
       return FormValidation::$validation_messages[$array[0]] ?? null;
-    }
-    else if(count($array)==2){
+    } else if (count($array) == 2) {
       return FormValidation::$validation_messages[$array[0]][$array[1]] ?? null;
     }
   }
@@ -133,8 +133,14 @@ class FormValidation
     return $this->addNewRule('digits', $custom_message, $digits);
   }
 
-  public function digitsBetween(int $min,int $max, $custom_message=false){
+  public function digitsBetween(int $min, int $max, $custom_message = false)
+  {
     return $this->addNewRule('digits_between', $custom_message, $min, $max);
+  }
+
+  public function different($other_value, $custom_message = false)
+  {
+    return $this->addNewRule('different', $custom_message, $other_value);
   }
 
   public function min($min_value, $custom_message = null)
@@ -247,36 +253,51 @@ class FormValidation
   private function _check_string($rule, $name)
   {
     $value = $this->getParam($name);
-    return [(is_string($value) && (gettype($value) == 'string')),['string']];
+    return [(is_string($value) && (gettype($value) == 'string')), ['string']];
   }
 
   private function _check_numeric($rule, $name)
   {
-    return [is_numeric($this->getParam($name)),['numeric']];
+    return [is_numeric($this->getParam($name)), ['numeric']];
   }
 
   private function _check_integer($rule, $name)
   {
-    return [gettype($this->getParam($name)) == 'integer',['integer']];
+    return [gettype($this->getParam($name)) == 'integer', ['integer']];
   }
 
-  public function _check_digits($rule, $name){
+  public function _check_digits($rule, $name)
+  {
     $digits = $rule['value1'];
-    $status = (strlen((string)$this->getParam($name)) == $digits);
-    return[$status, ['digits'], ['digits'=>$digits]];
+    $status = (strlen((string) $this->getParam($name)) == $digits);
+    return [$status, ['digits'], ['digits' => $digits]];
   }
 
-  public function _check_digits_between($rule, $name){
+  public function _check_digits_between($rule, $name)
+  {
     $min = $rule['value1'];
     $max = $rule['value2'];
-    $digits = strlen((string)$this->getParam($name));
+    $digits = strlen((string) $this->getParam($name));
 
     $status = false;
-    if($digits <= $max && $digits >= $min){
+    if ($digits <= $max && $digits >= $min) {
       $status = true;
     }
 
-    return[$status, ['digits_between'], ['min'=>$min, 'max'=>$max]];
+    return [$status, ['digits_between'], ['min' => $min, 'max' => $max]];
+  }
+
+
+  public function _check_different($rule, $name)
+  {
+    $other = $this->getParam($rule['value1']);
+
+    $status = true;
+    if ($other == $this->getParam($name)) {
+      $status = false;
+    }
+
+    return [$status, ['different'], ['other' => $other]];
   }
 
   private function _check_min($rule, $name)
@@ -298,7 +319,7 @@ class FormValidation
       $error_message_array = ['min', 'array'];
     }
 
-    return [$status, $error_message_array,['min'=>$min]];
+    return [$status, $error_message_array, ['min' => $min]];
   }
 
   private function _check_max($rule, $name)
@@ -321,7 +342,7 @@ class FormValidation
       $error_message_array = ['max', 'array'];
     }
 
-    return [$status, $error_message_array, ['max'=>$max]];
+    return [$status, $error_message_array, ['max' => $max]];
   }
 
   private function _check_email($rule, $name)
@@ -330,11 +351,11 @@ class FormValidation
     return [$status, ['email'],];
   }
 
-  
+
 
   private function _check_url($rule, $name)
   {
-    $status = (!$this->filter($this->getParam($name), FILTER_VALIDATE_URL)===false);
+    $status = (!$this->filter($this->getParam($name), FILTER_VALIDATE_URL) === false);
     return [$status, ['url'],];
   }
 
@@ -347,14 +368,14 @@ class FormValidation
 
     // Define a regular expression pattern for a valid domain name
     $pattern = '/^(?!\-)(?:(?:[a-zA-Z\d][a-zA-Z\d\-]{0,61})?[a-zA-Z\d]\.){1,126}(?!\d+)[a-zA-Z\d]{1,63}$/';
-    
+
     // Use preg_match to check if the domain matches the pattern
     if (preg_match($pattern, $domain)) {
-      $status= true;
+      $status = true;
     } else {
-      $status= false;
+      $status = false;
     }
-   
+
     return [$status, ['url']];
   }
 

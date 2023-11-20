@@ -391,4 +391,29 @@ final class FormValidationTest extends TestCase
     }
 
 
+    public function testCheckDifferentValidation(){
+        $array = [
+            'father_mobile' => '0999999999000',
+            'mother_mobile' => '0999999999001',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('father_mobile')->different('mother_mobile')->isValid();
+
+        $this->assertTrue($is_valid);
+
+        $array = [
+            'father_mobile' => '0999999999000',
+            'mother_mobile' => '0999999999000',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('father_mobile')->different('mother_mobile')->isValid();
+
+        $this->assertFalse($is_valid);
+    }
+
+
 }
