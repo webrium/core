@@ -390,7 +390,7 @@ final class FormValidationTest extends TestCase
         $this->assertFalse($is_valid);
     }
 
-
+    
     public function testCheckDifferentValidation(){
         $array = [
             'father_mobile' => '0999999999000',
@@ -413,6 +413,64 @@ final class FormValidationTest extends TestCase
         $is_valid = $form->field('father_mobile')->different('mother_mobile')->isValid();
 
         $this->assertFalse($is_valid);
+    }
+
+
+    public function testCheckConfirmedValidation(){
+        $array = [
+            'password' => '1234567',
+            'confirm_password' => '1234567',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('password')->confirmed('confirm_password')->isValid();
+
+        $this->assertTrue($is_valid);
+
+        $array = [
+            'password' => '1234567',
+            'confirm_password' => '123456',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('password')->confirmed('confirm_password')->isValid();
+
+        $this->assertFalse($is_valid);
+    }
+
+
+    public function testCheckRequiredValidation(){
+        $array = [
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('username')->required()->isValid();
+
+        $this->assertFalse($is_valid);
+
+        $array = [
+            'username'=>''
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('username')->required()->isValid();
+
+        $this->assertFalse($is_valid);
+
+
+        $array = [
+            'username'=>'dsfsdfs'
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('username')->required()->isValid();
+
+        $this->assertTrue($is_valid);
     }
 
 

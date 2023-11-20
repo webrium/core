@@ -143,6 +143,10 @@ class FormValidation
     return $this->addNewRule('different', $custom_message, $other_value);
   }
 
+  public function confirmed($field, $custom_message = false){
+    return $this->addNewRule('confirmed', $custom_message, $field);
+  }
+
   public function min($min_value, $custom_message = null)
   {
     return $this->addNewRule('min', $custom_message, $min_value);
@@ -153,7 +157,7 @@ class FormValidation
     return $this->addNewRule('max', $custom_message, $max_value);
   }
 
-  public function required($custom_message)
+  public function required($custom_message=false)
   {
     return $this->addNewRule('required', $custom_message);
   }
@@ -250,30 +254,38 @@ class FormValidation
     return $this->getParam($this->current_field);
   }
 
-  private function _check_string($rule, $name)
+  public function _check_required($rule, $name){
+    $status = true;
+    if(isset($this->form_data_params[$name]) == false || empty($this->form_data_params[$name]) ){
+      $status = false;
+    }
+    return [$status, ['required']];
+  }
+
+  private function _check_string($rule, $name):array
   {
     $value = $this->getParam($name);
     return [(is_string($value) && (gettype($value) == 'string')), ['string']];
   }
 
-  private function _check_numeric($rule, $name)
+  private function _check_numeric($rule, $name):array
   {
     return [is_numeric($this->getParam($name)), ['numeric']];
   }
 
-  private function _check_integer($rule, $name)
+  private function _check_integer($rule, $name):array
   {
     return [gettype($this->getParam($name)) == 'integer', ['integer']];
   }
 
-  public function _check_digits($rule, $name)
+  public function _check_digits($rule, $name):array
   {
     $digits = $rule['value1'];
     $status = (strlen((string) $this->getParam($name)) == $digits);
     return [$status, ['digits'], ['digits' => $digits]];
   }
 
-  public function _check_digits_between($rule, $name)
+  public function _check_digits_between($rule, $name):array
   {
     $min = $rule['value1'];
     $max = $rule['value2'];
@@ -288,7 +300,7 @@ class FormValidation
   }
 
 
-  public function _check_different($rule, $name)
+  public function _check_different($rule, $name):array
   {
     $other = $this->getParam($rule['value1']);
 
@@ -300,7 +312,19 @@ class FormValidation
     return [$status, ['different'], ['other' => $other]];
   }
 
-  private function _check_min($rule, $name)
+
+  public function _check_confirmed($rule, $name):array{
+    $field = $this->getParam($rule['value1']);
+
+    $status = false;
+    if ($field == $this->getParam($name)) {
+      $status = true;
+    }
+
+    return [$status, ['confirmed']];
+  }
+
+  private function _check_min($rule, $name):array
   {
     $value = $this->getParam($name);
     $min = $rule['value1'];
@@ -322,7 +346,7 @@ class FormValidation
     return [$status, $error_message_array, ['min' => $min]];
   }
 
-  private function _check_max($rule, $name)
+  private function _check_max($rule, $name):array
   {
     $value = $this->getParam($name);
     $max = $rule['value1'];
@@ -345,7 +369,7 @@ class FormValidation
     return [$status, $error_message_array, ['max' => $max]];
   }
 
-  private function _check_email($rule, $name)
+  private function _check_email($rule, $name):array
   {
     $status = $this->filter($this->getParam($name), FILTER_VALIDATE_EMAIL);
     return [$status, ['email'],];
@@ -353,13 +377,13 @@ class FormValidation
 
 
 
-  private function _check_url($rule, $name)
+  private function _check_url($rule, $name):array
   {
     $status = (!$this->filter($this->getParam($name), FILTER_VALIDATE_URL) === false);
     return [$status, ['url'],];
   }
 
-  private function _check_domain($rule, $name)
+  private function _check_domain($rule, $name):array
   {
 
     $url = $this->getParam($name);
@@ -379,7 +403,7 @@ class FormValidation
     return [$status, ['url']];
   }
 
-  private function _check_mac($rule, $name)
+  private function _check_mac($rule, $name):array
   {
     $status = $this->filter($this->getParam($name), FILTER_VALIDATE_MAC);
     return [$status, ['mac']];
