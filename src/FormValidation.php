@@ -133,6 +133,10 @@ class FormValidation
     return $this->addNewRule('digits', $custom_message, $digits);
   }
 
+  public function digitsBetween(int $min,int $max, $custom_message=false){
+    return $this->addNewRule('digits_between', $custom_message, $min, $max);
+  }
+
   public function min($min_value, $custom_message = null)
   {
     return $this->addNewRule('min', $custom_message, $min_value);
@@ -260,6 +264,19 @@ class FormValidation
     $digits = $rule['value1'];
     $status = (strlen((string)$this->getParam($name)) == $digits);
     return[$status, ['digits'], ['digits'=>$digits]];
+  }
+
+  public function _check_digits_between($rule, $name){
+    $min = $rule['value1'];
+    $max = $rule['value2'];
+    $digits = strlen((string)$this->getParam($name));
+
+    $status = false;
+    if($digits <= $max && $digits >= $min){
+      $status = true;
+    }
+
+    return[$status, ['digits_between'], ['min'=>$min, 'max'=>$max]];
   }
 
   private function _check_min($rule, $name)

@@ -6,10 +6,11 @@ use Webrium\FormValidation;
 final class FormValidationTest extends TestCase
 {
 
-    public function testCheckEmailValidation(){
+    public function testCheckEmailValidation()
+    {
 
         $array = [
-            'email'=>'fdsfdsajklfas',
+            'email' => 'fdsfdsajklfas',
         ];
 
         $form = new FormValidation($array);
@@ -21,7 +22,7 @@ final class FormValidationTest extends TestCase
 
 
         $array = [
-            'email'=>'test@gmail.com',
+            'email' => 'test@gmail.com',
         ];
 
         $form = new FormValidation($array);
@@ -31,10 +32,11 @@ final class FormValidationTest extends TestCase
         $this->assertTrue($form->isValid());
     }
 
-    public function testCheckUrlValidation(){
+    public function testCheckUrlValidation()
+    {
 
         $array = [
-            'site_url'=>'https://google.com',
+            'site_url' => 'https://google.com',
         ];
 
         $form = new FormValidation($array);
@@ -45,7 +47,7 @@ final class FormValidationTest extends TestCase
 
 
         $array = [
-            'site_url'=>'httpgoogle.com',
+            'site_url' => 'httpgoogle.com',
         ];
 
         $form = new FormValidation($array);
@@ -55,10 +57,11 @@ final class FormValidationTest extends TestCase
         $this->assertFalse($form->isValid());
     }
 
-    public function testCheckDomainValidation(){
+    public function testCheckDomainValidation()
+    {
 
         $array = [
-            'site_url'=>'https://google.com',
+            'site_url' => 'https://google.com',
         ];
 
         $form = new FormValidation($array);
@@ -69,7 +72,7 @@ final class FormValidationTest extends TestCase
 
 
         $array = [
-            'site_url'=>'https://google',
+            'site_url' => 'https://google',
         ];
 
         $form = new FormValidation($array);
@@ -79,10 +82,11 @@ final class FormValidationTest extends TestCase
         $this->assertFalse($form->isValid());
     }
 
-    public function testCheckMacValidation(){
+    public function testCheckMacValidation()
+    {
 
         $array = [
-            'mac'=>'00-B0-D0-63-C2-26',
+            'mac' => '00-B0-D0-63-C2-26',
         ];
 
         $form = new FormValidation($array);
@@ -93,7 +97,7 @@ final class FormValidationTest extends TestCase
 
 
         $array = [
-            'mac'=>'00-B0-D0-63-C2-2',
+            'mac' => '00-B0-D0-63-C2-2',
         ];
 
         $form = new FormValidation($array);
@@ -103,10 +107,11 @@ final class FormValidationTest extends TestCase
         $this->assertFalse($form->isValid());
     }
 
-    public function testCheckIpValidation(){
+    public function testCheckIpValidation()
+    {
 
         $array = [
-            'ip'=>'8.8.8.8',
+            'ip' => '8.8.8.8',
         ];
 
         $form = new FormValidation($array);
@@ -117,7 +122,7 @@ final class FormValidationTest extends TestCase
 
 
         $array = [
-            'ip'=>'8.8.8.266',
+            'ip' => '8.8.8.266',
         ];
 
         $form = new FormValidation($array);
@@ -127,9 +132,10 @@ final class FormValidationTest extends TestCase
         $this->assertFalse($form->isValid());
     }
 
-    public function testCheckMinAndMaxStringLength(){
+    public function testCheckMinAndMaxStringLength()
+    {
         $array = [
-            'name'=>'BE',
+            'name' => 'BE',
         ];
 
         $form = new FormValidation($array);
@@ -139,12 +145,12 @@ final class FormValidationTest extends TestCase
         $is_valid = $form->isValid();
         $message = $form->getFirstError();
 
-        $this->assertFalse($is_valid,$message['message']??'');
+        $this->assertFalse($is_valid, $message['message'] ?? '');
 
 
         $array = [
-            'name'=>'BEN',
-            'mobile'=>'09999999990',
+            'name' => 'BEN',
+            'mobile' => '09999999990',
 
         ];
 
@@ -156,17 +162,18 @@ final class FormValidationTest extends TestCase
         $is_valid = $form->isValid();
         $message = $form->getFirstError();
 
-        $this->assertTrue($is_valid,$message['message']??'');
+        $this->assertTrue($is_valid, $message['message'] ?? '');
 
 
     }
 
 
-    public function testCheckMinAndMaxIntegerLength(){
+    public function testCheckMinAndMaxIntegerLength()
+    {
 
 
         $array = [
-            'age'=>15,
+            'age' => 15,
         ];
 
         $form = new FormValidation($array);
@@ -180,7 +187,7 @@ final class FormValidationTest extends TestCase
 
 
         $array = [
-            'age'=>18,
+            'age' => 18,
         ];
 
         $form = new FormValidation($array);
@@ -194,7 +201,7 @@ final class FormValidationTest extends TestCase
 
 
         $array = [
-            'age'=>19,
+            'age' => 19,
         ];
 
         $form = new FormValidation($array);
@@ -206,9 +213,10 @@ final class FormValidationTest extends TestCase
         $this->assertFalse($is_valid);
     }
 
-    public function testCheckMinAndMaxArrayLength(){
+    public function testCheckMinAndMaxArrayLength()
+    {
         $array = [
-            'category'=>['cat', 'car'],
+            'category' => ['cat', 'car'],
         ];
 
         $form = new FormValidation($array);
@@ -218,7 +226,7 @@ final class FormValidationTest extends TestCase
         $this->assertFalse($is_valid);
 
         $array = [
-            'category'=>['cat', 'car'],
+            'category' => ['cat', 'car'],
         ];
 
         $form = new FormValidation($array);
@@ -228,7 +236,7 @@ final class FormValidationTest extends TestCase
         $this->assertTrue($is_valid);
 
         $array = [
-            'category'=>['cat', 'car','dog'],
+            'category' => ['cat', 'car', 'dog'],
         ];
 
         $form = new FormValidation($array);
@@ -240,9 +248,10 @@ final class FormValidationTest extends TestCase
 
 
 
-    public function testCheckIntegerAndNumericType(){
+    public function testCheckIntegerAndNumericType()
+    {
         $array = [
-            'age'=>'19',
+            'age' => '19',
         ];
 
         $form = new FormValidation($array);
@@ -253,7 +262,7 @@ final class FormValidationTest extends TestCase
 
 
         $array = [
-            'age'=>19,
+            'age' => 19,
         ];
 
         $form = new FormValidation($array);
@@ -264,7 +273,7 @@ final class FormValidationTest extends TestCase
 
 
         $array = [
-            'age'=>'s44',
+            'age' => 's44',
         ];
 
         $form = new FormValidation($array);
@@ -275,7 +284,7 @@ final class FormValidationTest extends TestCase
 
 
         $array = [
-            'age'=>'44',
+            'age' => '44',
         ];
 
         $form = new FormValidation($array);
@@ -285,9 +294,10 @@ final class FormValidationTest extends TestCase
         $this->assertTrue($is_valid);
     }
 
-    public function testCheckStringValidation(){
+    public function testCheckStringValidation()
+    {
         $array = [
-            'name'=>'BEN',
+            'name' => 'BEN',
         ];
 
         $form = new FormValidation($array);
@@ -298,7 +308,7 @@ final class FormValidationTest extends TestCase
 
 
         $array = [
-            'name'=>333,
+            'name' => 333,
         ];
 
         $form = new FormValidation($array);
@@ -308,7 +318,7 @@ final class FormValidationTest extends TestCase
         $this->assertFalse($is_valid);
 
         $array = [
-            'name'=>[],
+            'name' => [],
         ];
 
         $form = new FormValidation($array);
@@ -319,9 +329,10 @@ final class FormValidationTest extends TestCase
     }
 
 
-    public function testDigitsValidation(){
+    public function testCheckDigitsValidation()
+    {
         $array = [
-            'mobile'=>'09999999999',
+            'mobile' => '09999999999',
         ];
 
         $form = new FormValidation($array);
@@ -332,12 +343,49 @@ final class FormValidationTest extends TestCase
 
 
         $array = [
-            'mobile'=>'0999999999',
+            'mobile' => '0999999999',
         ];
 
         $form = new FormValidation($array);
 
         $is_valid = $form->field('mobile')->digits(11)->isValid();
+
+        $this->assertFalse($is_valid);
+    }
+
+
+    public function testCheckDigitsBetweenValidation()
+    {
+        $array = [
+            'mobile' => '0999999910',
+            'mobile2' => '09999999911'
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('mobile')->digitsBetween(10, 11)->isValid();
+        $is_valid = $form->field('mobile2')->digitsBetween(10, 11)->isValid();
+
+        $this->assertTrue($is_valid);
+
+
+        $array = [
+            'mobile' => '0999999999',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('mobile')->digitsBetween(11, 12)->isValid();
+
+        $this->assertFalse($is_valid);
+
+        $array = [
+            'mobile' => '0999999999000',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('mobile')->digitsBetween(11, 12)->isValid();
 
         $this->assertFalse($is_valid);
     }
