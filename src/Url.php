@@ -31,7 +31,7 @@ class Url
 
   }
 
-  public static function domain()
+  public static function domain():string
   {
     return $_SERVER['HTTP_HOST']??'';
   }
