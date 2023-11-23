@@ -330,6 +330,55 @@ final class FormValidationTest extends TestCase
     }
 
 
+    public function testCheckArrayValidation(){
+        $array = [
+            'category' => '333',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('category')->array()->isValid();
+
+        $this->assertFalse($is_valid);
+
+
+        $array = [
+            'category' => ['cat', 'dog'],
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('category')->array()->isValid();
+
+        $this->assertTrue($is_valid);
+    }
+
+    public function testCheckOnjectValidation(){
+        $array = [
+            'user' => '333',
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('user')->object()->isValid();
+
+        $this->assertFalse($is_valid);
+
+        $std = new stdClass;
+        $std->name = 'BEN';
+
+        $array = [
+            'user' => $std,
+        ];
+
+        $form = new FormValidation($array);
+
+        $is_valid = $form->field('user')->object()->isValid();
+
+        $this->assertTrue($is_valid);
+    }
+
+
     public function testCheckDigitsValidation()
     {
         $array = [
@@ -483,6 +532,108 @@ final class FormValidationTest extends TestCase
         $form->field('username')->digits(10);
         $is_valid = $form->isValid();
         $this->assertTrue($is_valid, $form->getFirstError()['message']??'');
+    }
+
+
+    public function testCheckErrorMessages(){
+
+        $array = [
+            'name'=>'BEN',
+            'email'=>'benkhaliferoton.me',
+            'username'=>'benkhalife',
+            'password'=> '1234567',
+            'confirm_password'=> '12345678',
+            // 'age'=>18,
+        ];
+        $form = new FormValidation($array);
+        $form->field('email')->required()->email();
+        $form->field('age')->required();
+
+        
+        $is_valid = $form->isValid();
+
+        $this->assertEquals('The email must be a valid email address.', $form->getFirstError()['message']??'');
+
+
+        $array = [
+            'name'=>'BEN',
+            'email'=>'benkhalif@proton.me',
+            'username'=>'benkhalife',
+            'password'=> '1234567',
+            'confirm_password'=> '12345678',
+            'age'=>'18',
+        ];
+        $form = new FormValidation($array);
+        $form->field('email')->required()->email();
+        $form->field('age')->required()->integer();
+
+        
+        $is_valid = $form->isValid();
+
+        $this->assertEquals('The age must be an integer.', $form->getFirstError()['message']??'');
+    }
+
+
+    public function testSimulationOfRealValidationMode(){
+        $array = [
+            'name'=>'BEN',
+            'email'=>'benkhalife@proton.me',
+            'username'=>'benkhalife',
+            'password'=> '12345678',
+            'confirm_password'=> '12345678',
+            'age'=>18,
+        ];
+
+        $form = new FormValidation($array);
+        $form->field('name')->required()->min(2)->max(25);
+        $form->field('email')->required()->email();
+        $form->field('password')->required()->confirmed('confirm_password')->min(6);
+        $form->field('age')->required()->integer()->min(12)->max(99);
+
+        $is_valid = $form->isValid();
+        $this->assertTrue($is_valid, $form->getFirstError()['message']??'');
+
+
+
+        $array = [
+            'name'=>'BEN',
+            'email'=>'benkhalife@proton.me',
+            'username'=>'benkhalife',
+            'password'=> '12345678',
+            'confirm_password'=> '12345678',
+            // 'age'=>18,
+        ];
+
+        $form = new FormValidation($array);
+        $form->field('name')->required()->min(2)->max(25);
+        $form->field('username')->required()->min(2)->max(25);
+        $form->field('email')->required()->email();
+        $form->field('password')->required()->confirmed('confirm_password')->min(6);
+        $form->field('age')->integer()->min(12)->max(99);
+        
+        $is_valid = $form->isValid();
+        $this->assertTrue($is_valid, $form->getFirstError()['message']??'');
+
+
+
+        $array = [
+            'name'=>'BEN',
+            'email'=>'benkhaliferoton.me',
+            'username'=>'benkhalife',
+            'password'=> '1234567',
+            'confirm_password'=> '12345678',
+            // 'age'=>18,
+        ];
+
+        $form = new FormValidation($array);
+        $form->field('name')->required()->min(2)->max(25);
+        $form->field('username')->required()->min(2)->max(25);
+        $form->field('email')->required()->email();
+        $form->field('password')->required()->confirmed('confirm_password')->min(6);
+        $form->field('age')->integer()->min(12)->max(99);
+        
+        $is_valid = $form->isValid();
+        $this->assertFalse($is_valid, $form->getFirstError()['message']??'');
     }
 
 

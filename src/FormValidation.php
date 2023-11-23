@@ -9,6 +9,7 @@ class FormValidation
 {
 
   private array $form_data_params;
+  
   private static array $validation_messages;
 
   private array $validation_data;
@@ -18,6 +19,11 @@ class FormValidation
   private array $error_list = [];
 
 
+  /**
+   * Construct a new FormValidation object.
+   *
+   * @param array|null $form_data_params The form data parameters.
+   */
   function __construct($form_data_params = null)
   {
     if ($form_data_params === null) {
@@ -32,13 +38,13 @@ class FormValidation
 
 
 
-
+  /**
+   * Load the validation messages from a file.
+   */
   private function loadValidationMessages(): void
   {
 
     $validation_message_path = Directory::path('langs') . '/' . App::getLocale() . '/validation.php';
-
-    // die(json_encode([isset(FormValidation::$validation_messages),File::exists($validation_message_path)]));
     if (isset(FormValidation::$validation_messages) == false) {
       if (File::exists($validation_message_path) == true) {
         FormValidation::$validation_messages = include_once $validation_message_path;
@@ -49,13 +55,21 @@ class FormValidation
     }
   }
 
-  public function field($name, $translation = null)
+
+  /**
+   * Validate the value of a field.
+   *
+   * @param string $name The name of the field.
+   * @param string|null $translation The translation of the field name.
+   * @return FormValidation
+   */
+  public function field(string $name, $translation = null)
   {
 
     $this->current_field = $name;
 
     $this->validation_data[$name] = [
-      'has_value'=>false,
+      'has_value' => false,
       'name' => $name,
       't_name' => $translation,
       'rules' => [],
@@ -64,27 +78,303 @@ class FormValidation
     return $this;
   }
 
-  private function addNewRule($type, $message, $value1 = null, $value2 = null)
+
+
+  /**
+   * Adds a numeric validation rule to the current field.
+   *
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function numeric($custom_message = null)
+  {
+    return $this->addNewRule('numeric', $custom_message);
+  }
+
+  /**
+   * Adds an integer validation rule to the current field.
+   *
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function integer($custom_message = null)
+  {
+    return $this->addNewRule('integer', $custom_message);
+  }
+
+  /**
+   * Adds a string validation rule to the current field.
+   *
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function string($custom_message = null)
+  {
+    return $this->addNewRule('string', $custom_message);
+  }
+
+  /**
+   * Adds a digits validation rule to the current field.
+   *
+   * @param int $digits The number of digits.
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function digits(int $digits, $custom_message = null)
+  {
+    return $this->addNewRule('digits', $custom_message, $digits);
+  }
+
+
+  /**
+   * Adds a digits_between validation rule to the current field.
+   *
+   * @param int $min The minimum number of digits.
+   * @param int $max The maximum number of digits.
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function digitsBetween(int $min, int $max, $custom_message = false)
+  {
+    return $this->addNewRule('digits_between', $custom_message, $min, $max);
+  }
+
+
+  /**
+   * Adds a different validation rule to the current field.
+   *
+   * @param mixed $other_value The value to compare the current value to.
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function different($other_value, $custom_message = false)
+  {
+    return $this->addNewRule('different', $custom_message, $other_value);
+  }
+
+
+  /**
+   * Adds a confirmed validation rule to the current field.
+   *
+   * @param string $field The name of the field to compare the current value to.
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function confirmed($field, $custom_message = false)
+  {
+    return $this->addNewRule('confirmed', $custom_message, $field);
+  }
+
+  /**
+   * Adds a min validation rule to the current field.
+   *
+   * @param int|float $min_value The minimum value.
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function min($min_value, $custom_message = null)
+  {
+    return $this->addNewRule('min', $custom_message, $min_value);
+  }
+
+  /**
+   * Adds a max validation rule to the current field.
+   *
+   * @param int|float $max_value The maximum value.
+   * @param string|null $custom_message The custom error
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function max($max_value, $custom_message = null)
+  {
+    return $this->addNewRule('max', $custom_message, $max_value);
+  }
+
+  /**
+   * Adds a required validation rule to the current field.
+   *
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function required($custom_message = false)
+  {
+    return $this->addNewRule('required', $custom_message);
+  }
+
+
+  /**
+   * Adds an email validation rule to the current field.
+   *
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function email($custom_message = false)
+  {
+    return $this->addNewRule('email', $custom_message);
+
+  }
+
+
+  /**
+   * Adds a url validation rule to the current field.
+   *
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function url($custom_message = false)
+  {
+    return $this->addNewRule('url', $custom_message);
+  }
+
+
+  /**
+   * Adds a domain validation rule to the current field.
+   *
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function domain($custom_message = false)
+  {
+    return $this->addNewRule('domain', $custom_message);
+  }
+
+
+  /**
+   * Adds a mac validation rule to the current field.
+   *
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function mac($custom_message = false)
+  {
+    return $this->addNewRule('mac', $custom_message);
+  }
+
+
+  /**
+   * Adds an ip validation rule to the current field.
+   *
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function ip($custom_message = false)
+  {
+    return $this->addNewRule('ip', $custom_message);
+  }
+
+
+  /**
+   * Adds a boolean validation rule to the current field.
+   *
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function boolean($custom_message = false)
+  {
+    return $this->addNewRule('boolean', $custom_message);
+  }
+
+
+  /**
+   * Adds an array validation rule to the current field.
+   *
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function array($custom_message = false)
+  {
+    return $this->addNewRule('array', $custom_message);
+  }
+
+
+  /**
+   * Adds an object validation rule to the current field.
+   *
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function object($custom_message = false)
+  {
+    return $this->addNewRule('object', $custom_message);
+  }
+
+
+  /**
+   * Adds a between validation rule to the current field.
+   *
+   * @param int|float $min The minimum value.
+   * @param int|float $max The maximum value.
+   * @param string|null $custom_message The custom error message for the rule.
+   * @return FormValidation The current FormValidation instance.
+   */
+  public function between($min, $max, $custom_message = null)
+  {
+    return $this->addNewRule('between', $custom_message, $min, $max);
+  }
+
+  // public function file($custom_message = null)
+  // {
+  //   return $this->addNewRule('file', $custom_message);
+  // }
+
+  // public function size(int $size_number, $custom_message)
+  // {
+  //   return $this->addNewRule('size', $custom_message, $size_number);
+  // }
+
+
+
+  /**
+   * Add a new validation rule.
+   *
+   * @param string $type The type of validation rule.
+   * @param string $message The custom message for the validation rule.
+   * @param mixed|null $value1 The first value for the validation rule.
+   * @param mixed|null $value2 The second value for the validation rule.
+   * @return FormValidation
+   */
+  private function addNewRule(string $type, $message, $value1 = null, $value2 = null)
   {
     $this->validation_data[$this->current_field]['rules'][] = ['type' => $type, 'custom_message' => $message, 'value1' => $value1, 'value2' => $value2];
     return $this;
   }
 
 
-  private function addError($validation_result, $rule)
+  /**
+   * Add an error to the error list.
+   *
+   * @param string $field_name The name of the field with the error.
+   * @param array $validation_result The result of the validation check.
+   * @param array $rule The validation rule that caused the error.
+   */
+  private function addError(string $field_name, array $validation_result, array $rule)
   {
-    $message = $this->generateErrorMessage($validation_result, $rule);
-    // echo("\n\n error message : $message \n\n");
-    $this->error_list[] = ['field' => $this->current_field, 'message' => $message];
+    $message = $this->generateErrorMessage($field_name, $validation_result, $rule);
+    $this->error_list[] = ['field' => $field_name, 'message' => $message];
   }
 
 
+  /**
+   * Get the first error in the error list.
+   *
+   * @return array|false The first error or false if there are no errors.
+   */
   public function getFirstError()
   {
     return $this->error_list[0] ?? false;
   }
 
-  private function generateErrorMessage($validation_result, $rule): string
+
+  /**
+   * Get all errors in the error list.
+   *
+   * @return array An array of errors.
+   */
+  public function getAllError()
+  {
+    return $this->error_list ?? [];
+  }
+
+  private function generateErrorMessage(string $field_name, $validation_result, $rule): string
   {
     if ($rule['custom_message'] == false) {
       $message = $this->getValidationErrorMessage($validation_result[1]);
@@ -92,7 +382,7 @@ class FormValidation
       $message = $rule['custom_message'];
     }
 
-    $data = $this->validation_data[$this->current_field];
+    $data = $this->validation_data[$field_name];
     $name = $data['name'];
     $t_name = $data['t_name'];
 
@@ -114,106 +404,6 @@ class FormValidation
     }
   }
 
-  public function numeric($custom_message = null)
-  {
-    return $this->addNewRule('numeric', $custom_message);
-  }
-
-  public function integer($custom_message = null)
-  {
-    return $this->addNewRule('integer', $custom_message);
-  }
-
-  public function string($custom_message = null)
-  {
-    return $this->addNewRule('string', $custom_message);
-  }
-
-  public function digits(int $digits, $custom_message = null)
-  {
-    return $this->addNewRule('digits', $custom_message, $digits);
-  }
-
-  public function digitsBetween(int $min, int $max, $custom_message = false)
-  {
-    return $this->addNewRule('digits_between', $custom_message, $min, $max);
-  }
-
-  public function different($other_value, $custom_message = false)
-  {
-    return $this->addNewRule('different', $custom_message, $other_value);
-  }
-
-  public function confirmed($field, $custom_message = false){
-    return $this->addNewRule('confirmed', $custom_message, $field);
-  }
-
-  public function min($min_value, $custom_message = null)
-  {
-    return $this->addNewRule('min', $custom_message, $min_value);
-  }
-
-  public function max($max_value, $custom_message = null)
-  {
-    return $this->addNewRule('max', $custom_message, $max_value);
-  }
-
-  public function required($custom_message=false)
-  {
-    return $this->addNewRule('required', $custom_message);
-  }
-
-
-  public function email($custom_message = false)
-  {
-    return $this->addNewRule('email', $custom_message);
-
-  }
-
-  public function url($custom_message = false)
-  {
-    return $this->addNewRule('url', $custom_message);
-  }
-
-  public function domain($custom_message = false)
-  {
-    return $this->addNewRule('domain', $custom_message);
-  }
-
-  public function mac($custom_message = false)
-  {
-    return $this->addNewRule('mac', $custom_message);
-  }
-
-  public function ip($custom_message = false)
-  {
-    return $this->addNewRule('ip', $custom_message);
-  }
-
-  public function boolean($custom_message = false)
-  {
-    return $this->addNewRule('boolean', $custom_message);
-  }
-
-  public function array($custom_message = false)
-  {
-    return $this->addNewRule('array', $custom_message);
-  }
-
-  public function between($min, $max, $custom_message = null)
-  {
-    return $this->addNewRule('between', $custom_message, $min, $max);
-  }
-
-  public function file($custom_message = null)
-  {
-    return $this->addNewRule('file', $custom_message);
-  }
-
-  public function size(int $size_number, $custom_message)
-  {
-    return $this->addNewRule('size', $custom_message, $size_number);
-  }
 
   private function process()
   {
@@ -224,15 +414,14 @@ class FormValidation
       $name = $data['name'];
       $rules = $data['rules'];
 
-      if(isset($this->form_data_params[$name]) && empty($this->form_data_params[$name]) ==false ){
+      if (isset($this->form_data_params[$name]) && empty($this->form_data_params[$name]) == false) {
         $this->validation_data[$name]['has_value'] = true;
       }
 
 
       foreach ($rules as $rule) {
-        
-        if($this->validation_data[$name]['has_value'] == false && $rule['type'] != 'required'){
-          // die('rule');
+
+        if ($this->validation_data[$name]['has_value'] == false && $rule['type'] != 'required') {
           break;
         }
 
@@ -241,7 +430,7 @@ class FormValidation
         $result = $this->$method_exec_name($rule, $name);
 
         if ($result[0] == false) {
-          $this->addError($result, $rule);
+          $this->addError($name, $result, $rule);
           $validation = false;
         }
 
@@ -263,38 +452,39 @@ class FormValidation
     return $this->getParam($this->current_field);
   }
 
-  public function _check_required($rule, $name){
+  public function _check_required($rule, $name)
+  {
     // echo "\ncheck ".$this->validation_data[$name]['has_value']."\n";
-    return [$this->validation_data[$name]['has_value']??false, ['required']];
+    return [$this->validation_data[$name]['has_value'] ?? false, ['required']];
   }
 
-  private function _check_string($rule, $name):array
+  private function _check_string($rule, $name): array
   {
     $value = $this->getParam($name);
     return [(is_string($value) && (gettype($value) == 'string')), ['string']];
   }
 
-  private function _check_numeric($rule, $name):array
+  private function _check_numeric($rule, $name): array
   {
     return [is_numeric($this->getParam($name)), ['numeric']];
   }
 
-  private function _check_integer($rule, $name):array
+  private function _check_integer($rule, $name): array
   {
     return [gettype($this->getParam($name)) == 'integer', ['integer']];
   }
 
-  public function _check_digits($rule, $name):array
+  public function _check_digits($rule, $name): array
   {
     $status = true;
-    if($this->getParam($name)!=null){
-      $digits = $rule['value1']??null;
+    if ($this->getParam($name) != null) {
+      $digits = $rule['value1'] ?? null;
       $status = (strlen((string) $this->getParam($name)) == $digits);
     }
-    return [$status, ['digits'], ['digits' => $digits??'']];
+    return [$status, ['digits'], ['digits' => $digits ?? '']];
   }
 
-  public function _check_digits_between($rule, $name):array
+  public function _check_digits_between($rule, $name): array
   {
     $min = $rule['value1'];
     $max = $rule['value2'];
@@ -309,7 +499,7 @@ class FormValidation
   }
 
 
-  public function _check_different($rule, $name):array
+  public function _check_different($rule, $name): array
   {
     $other = $this->getParam($rule['value1']);
 
@@ -322,7 +512,8 @@ class FormValidation
   }
 
 
-  public function _check_confirmed($rule, $name):array{
+  public function _check_confirmed($rule, $name): array
+  {
     $field = $this->getParam($rule['value1']);
 
     $status = false;
@@ -333,7 +524,7 @@ class FormValidation
     return [$status, ['confirmed']];
   }
 
-  private function _check_min($rule, $name):array
+  private function _check_min($rule, $name): array
   {
     $value = $this->getParam($name);
     $min = $rule['value1'];
@@ -355,7 +546,7 @@ class FormValidation
     return [$status, $error_message_array, ['min' => $min]];
   }
 
-  private function _check_max($rule, $name):array
+  private function _check_max($rule, $name): array
   {
     $value = $this->getParam($name);
     $max = $rule['value1'];
@@ -378,7 +569,7 @@ class FormValidation
     return [$status, $error_message_array, ['max' => $max]];
   }
 
-  private function _check_email($rule, $name):array
+  private function _check_email($rule, $name): array
   {
     $status = $this->filter($this->getParam($name), FILTER_VALIDATE_EMAIL);
     return [$status, ['email'],];
@@ -386,13 +577,13 @@ class FormValidation
 
 
 
-  private function _check_url($rule, $name):array
+  private function _check_url($rule, $name): array
   {
     $status = (!$this->filter($this->getParam($name), FILTER_VALIDATE_URL) === false);
     return [$status, ['url'],];
   }
 
-  private function _check_domain($rule, $name):array
+  private function _check_domain($rule, $name): array
   {
 
     $url = $this->getParam($name);
@@ -412,10 +603,22 @@ class FormValidation
     return [$status, ['url']];
   }
 
-  private function _check_mac($rule, $name):array
+  private function _check_mac($rule, $name): array
   {
     $status = $this->filter($this->getParam($name), FILTER_VALIDATE_MAC);
     return [$status, ['mac']];
+  }
+
+  private function _check_array($rule, $name): array
+  {
+    $status = is_array($this->getParam($name));
+    return [$status, ['array']];
+  }
+
+  private function _check_object($rule, $name): array
+  {
+    $status = is_object($this->getParam($name));
+    return [$status, ['object']];
   }
 
   private function _check_ip($rule, $name)
@@ -434,11 +637,6 @@ class FormValidation
   public function isValid()
   {
     return $this->process();
-  }
-
-  public function test()
-  {
-    return $this->validation_data;
   }
 
 }
