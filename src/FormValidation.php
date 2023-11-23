@@ -9,7 +9,7 @@ class FormValidation
 {
 
   private array $form_data_params;
-  
+
   private static array $validation_messages;
 
   private array $validation_data;
@@ -361,6 +361,17 @@ class FormValidation
   public function getFirstError()
   {
     return $this->error_list[0] ?? false;
+  }
+
+
+  /**
+   * Get the first error message.
+   *
+   * @return array|false The first error message or false.
+   */
+  public function getFirstErrorMessage()
+  {
+    return $this->getFirstError()['message'] ?? false;
   }
 
 
