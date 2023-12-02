@@ -487,7 +487,7 @@ class FormValidation
   private function _check_boolean($rule, $name): array
   {
     $value = $this->getParam($name);
-    return [is_bool($value), ['string']];
+    return [is_bool($value), ['boolean']];
   }
 
   public function _check_digits($rule, $name): array
