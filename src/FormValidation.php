@@ -425,7 +425,7 @@ class FormValidation
       $name = $data['name'];
       $rules = $data['rules'];
 
-      if (isset($this->form_data_params[$name]) && empty($this->form_data_params[$name]) == false) {
+      if (isset($this->form_data_params[$name])) {
         $this->validation_data[$name]['has_value'] = true;
       }
 
@@ -465,7 +465,6 @@ class FormValidation
 
   public function _check_required($rule, $name)
   {
-    // echo "\ncheck ".$this->validation_data[$name]['has_value']."\n";
     return [$this->validation_data[$name]['has_value'] ?? false, ['required']];
   }
 
@@ -483,6 +482,12 @@ class FormValidation
   private function _check_integer($rule, $name): array
   {
     return [gettype($this->getParam($name)) == 'integer', ['integer']];
+  }
+
+  private function _check_boolean($rule, $name): array
+  {
+    $value = $this->getParam($name);
+    return [is_bool($value), ['string']];
   }
 
   public function _check_digits($rule, $name): array
