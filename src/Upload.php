@@ -315,7 +315,11 @@ class Upload
   public function replaceStr(&$text)
   {
     $text = str_replace('@name', $this->getClientOriginalName(), $text);
+
+    
     $text = str_replace('@size', $this->size(), $text);
-    $text = str_replace('@maxSize', $this->maxSize['number'], $text);
+
+    if($this->maxSize)
+      $text = str_replace('@maxSize', $this->maxSize['number'], $text);
   }
 }
