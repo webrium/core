@@ -112,6 +112,74 @@ class File
   }
 
 
+  public static function stream($file_path, $download_name = null)
+  {
+    // Load FileInfo module to determine the MIME type of the file
+    $file_info = finfo_open(FILEINFO_MIME_TYPE);
+
+    if (is_file($file_path)) {
+      $file_size = filesize($file_path);
+      $download_name = $download_name ?? basename($file_path);
+
+      // Determine the content type based on the MIME type of the file
+      $content_type = finfo_file($file_info, $file_path);
+
+      // Set default headers
+      header('Content-Type: ' . $content_type);
+      header('Accept-Ranges: bytes');
+
+      // Check if a Range header is present
+      if (isset($_SERVER['HTTP_RANGE'])) {
+        $range = $_SERVER['HTTP_RANGE'];
+        list(, $range) = explode('=', $range, 2);
+        list($start, $end) = explode('-', $range);
+
+        // Parse start and end
+        $start = $start === '' ? 0 : intval($start);
+        $end = $end === '' ? $file_size - 1 : intval($end);
+
+        // Validate range
+        if ($start > $end || $start >= $file_size) {
+          header('HTTP/1.1 416 Range Not Satisfiable');
+          header("Content-Range: bytes */$file_size");
+          exit;
+        }
+
+        $length = $end - $start + 1;
+
+        // Partial content response
+        header('HTTP/1.1 206 Partial Content');
+        header("Content-Range: bytes $start-$end/$file_size");
+        header('Content-Length: ' . $length);
+
+        // Open the file and stream the requested range
+        $file = fopen($file_path, 'rb');
+        fseek($file, $start);
+        $buffer_size = 1024 * 8;
+        while (!feof($file) && ($pos = ftell($file)) <= $end) {
+          if ($pos + $buffer_size > $end) {
+            $buffer_size = $end - $pos + 1;
+          }
+          echo fread($file, $buffer_size);
+          ob_flush();
+          flush();
+        }
+        fclose($file);
+      } else {
+        // Full content response
+        header('Content-Length: ' . $file_size);
+        readfile($file_path);
+      }
+
+      exit;
+    } else {
+      header('HTTP/1.1 404 Not Found');
+      echo "Error: File not found.";
+    }
+
+    finfo_close($file_info); // Close the FileInfo module
+  }
+
 
   /**
    * Downloads a file from the server to the client with appropriate headers and content type.
