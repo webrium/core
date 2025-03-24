@@ -32,9 +32,14 @@ class View
     }
   }
 
-  public static function loadview($view)
+  public static function loadView($view)
   {
     return self::loadPath(Directory::path('views')."/$view.php");
+  }
+
+  public static function loadHtml($view)
+  {
+    return self::loadPath(Directory::path('views')."/$view.html");
   }
 
   private static function findOrginalNameByHash($hashName){
