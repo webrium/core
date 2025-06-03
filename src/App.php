@@ -15,7 +15,15 @@ class App
 
     private static $env = [];
 
-    public static function root($dir)
+    private static $lang_store = [];
+
+
+    /**
+     * Initializes the application.
+     * Sets the root path, registers the autoloader, and confirms the URL.
+     * @param string $dir The directory path to set as the root.
+     */
+    public static function root(string $dir)
     {
         self::rootPath($dir);
 
@@ -45,6 +53,11 @@ class App
         });
     }
 
+
+    /**
+     * Sets or gets the root path of the application.
+     * @param mixed $dir
+     */
     public static function rootPath($dir = false)
     {
         if ($dir) {
@@ -54,7 +67,15 @@ class App
         return Url::without_trailing_slash(self::$rootPath);
     }
 
-    public static function input($name = false, $default = null)
+
+    /**
+     * Gets the input data from the request.
+     * If a name is provided, it returns the value for that name.
+     * If no name is provided, it returns all input data.
+     * @param string $name
+     * @param mixed $default
+     */
+    public static function input(string $name = false, $default = null)
     {
         $method = Url::method();
         $params = [];
@@ -144,7 +165,6 @@ class App
         header("Pragma: no-cache");
     }
 
-    private static $lang_store = [];
     public static function lang($name)
     {
 
