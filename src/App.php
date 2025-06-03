@@ -26,7 +26,7 @@ class App
         Url::ConfirmUrl();
     }
 
-    public static function init_spl_autoload_register()
+    private static function init_spl_autoload_register()
     {
         spl_autoload_register(function ($class) {
 
