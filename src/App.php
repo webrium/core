@@ -34,7 +34,7 @@ class App
         Url::ConfirmUrl();
     }
 
-    private static function init_spl_autoload_register()
+    public static function init_spl_autoload_register()
     {
         spl_autoload_register(function ($class) {
 
