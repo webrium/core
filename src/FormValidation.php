@@ -7,7 +7,13 @@ use webrium\core\App;
 
 class FormValidation
 {
-  private $currentName,$fakeName=false,$currentValue,$errors=[],$list=[],$type;
+  private $currentName;
+  private $fakeName=false;
+  private $currentValue;
+  private $errors=[];
+  private $list=[];
+  private $type;
+  private $messages;
 
   public function field($name,$translation=false)
   {
@@ -228,6 +234,10 @@ class FormValidation
 }
 
 class GetError{
+
+  private $array;
+  private $list;
+
   public function set($array,$list)
   {
     $this->array = $array;
