@@ -11,48 +11,46 @@ Webrium Core has a set of features that make site development simpler and faster
 Webrium Core includes facilities such as routes, file upload and download, session management, etc
 
 
-### Documentation :
 
- - [Route Class Documentation](https://github.com/webrium/core/wiki/Route-Class-Documentation)
- - [Session Class Documentation](https://github.com/webrium/core/wiki/Session-Class-Documentation)
- - [JWT (JSON Web Token) Documentation](https://github.com/webrium/core/wiki/JWT-Documentation)
- - [Hash Class Documentation](https://github.com/webrium/core/wiki/Hash-Class-Documentation)
- - [HTTP Class Documentation](https://github.com/webrium/core/wiki/HTTP-Class-Documentation)
- - [Email Documentation](https://github.com/webrium/core/wiki/Email-Documentation)
-
-1) install core
+## 1) install Webrium Core
 ```
 composer require webrium/core
 ```
-2) create the app Directory
 
-3) create the index.php file in app
+## 2) Create the `index.php` file
 
 index.php
 ```PHP
 <?php
+
+// Load Composer autoloader
 require_once __DIR__ . '/../vendor/autoload.php';
 
+// Import required classes
 use Webrium\App;
 use Webrium\Debug;
 use Webrium\Route;
 
-Debug::showErrorsStatus(true);
-Debug::writErrorsStatus(false);
+// Enable error display for debugging
+Debug::enableErrorDisplay(true);
 
-// init index path
-App::root(__DIR__);
+// Disable error logging to file
+Debug::enableErrorLogging(false);
 
-Route::get('', function ()
-{
-  return ['message'=>'successful'];
+// Set application root path
+App::setRootPath(__DIR__);
+
+// Define home route
+Route::get('/', function () {
+    return ['message' => 'Hello World'];
 });
 
+// Start routing
+Route::run();
 ```
 
-4) create the .htaccess file in app
+## 3) Create the `.htaccess` file in app
 
-.htaccess
 ```
 AddDefaultCharset UTF-8
 
@@ -64,12 +62,8 @@ AddDefaultCharset UTF-8
 </IfModule>
 ```
 
-Try it now
+### Try it now 🎉
 
-Output (http://localhost/app/)
 
-``
-{"message":"successful"}
-``
 
 
