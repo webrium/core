@@ -29,7 +29,7 @@ class Route
             $result = File::runOnce("$path/$fileName");
 
             if ($result === false) {
-                Debug::createError("Route file '$fileName' not found.");
+                Debug::triggerError("Route file '$fileName' not found.");
             }
         }
     }
@@ -63,7 +63,7 @@ class Route
         ];
         if (!empty($name)) {
             if (isset(self::$routeNames[$name])) {
-                Debug::createError("Route name '$name' is already registered.");
+                Debug::triggerError("Route name '$name' is already registered.");
             }
             self::$routeNames[$name] = $routeIndex;
         }
@@ -145,12 +145,12 @@ class Route
     public function name(string $name)
     {
         if (empty(self::$routes)) {
-            Debug::createError("No route registered to assign name '$name'.");
+            Debug::triggerError("No route registered to assign name '$name'.");
             return;
         }
 
         if (isset(self::$routeNames[$name])) {
-            Debug::createError("Route name '$name' is already registered.");
+            Debug::triggerError("Route name '$name' is already registered.");
             return;
         }
 
@@ -206,7 +206,7 @@ class Route
     public static function getRoute(string $name, array $params = [])
     {
         if (!isset(self::$routeNames[$name])) {
-            Debug::createError("Route with name '$name' not found.");
+            Debug::triggerError("Route with name '$name' not found.");
             return '';
         }
 
@@ -220,7 +220,7 @@ class Route
         // Check if all required parameters are provided
         foreach ($requiredParams as $param) {
             if (!isset($params[$param])) {
-                Debug::createError("Missing required parameter '$param' for route '$name'.");
+                Debug::triggerError("Missing required parameter '$param' for route '$name'.");
                 return '';
             }
         }
@@ -232,7 +232,7 @@ class Route
 
         // Check if all parameters were replaced
         if (preg_match('/\{[a-zA-Z_][a-zA-Z0-9_]*\}/', $url)) {
-            Debug::createError("Some parameters were not replaced in route '$name'.");
+            Debug::triggerError("Some parameters were not replaced in route '$name'.");
             return '';
         }
 
@@ -303,7 +303,7 @@ class Route
      */
     private static function handleNotFound()
     {
-        Debug::error404();
+        Debug::setStatusCode(404);
 
         if (self::$notFoundHandler === null) {
             echo 'Page not found';
@@ -324,7 +324,7 @@ class Route
     public static function executeControllerMethod(string $handlerString, array $params = [])
     {
         if (strpos($handlerString, '@') === false) {
-            Debug::createError("Invalid handler format: '$handlerString'. Expected 'Controller@method'.");
+            Debug::triggerError("Invalid handler format: '$handlerString'. Expected 'Controller@method'.");
             return null;
         }
 
@@ -377,7 +377,7 @@ class Route
             $result = call_user_func_array($matchedRoute['handler'], $matchedRoute['params']);
             App::ReturnData($result);
         } else {
-            Debug::createError("Invalid route handler type.");
+            Debug::triggerError("Invalid route handler type.");
         }
     }
 
@@ -427,7 +427,7 @@ class Route
             return $middleware;
         }
 
-        Debug::createError("Invalid middleware handler type.");
+        Debug::triggerError("Invalid middleware handler type.");
         return false;
     }
 }
