@@ -1,107 +1,115 @@
 <?php
-namespace webrium;
 
+namespace Webrium;
+
+
+/**
+ * Static helper facade for quick requests
+ */
 class Http
 {
-
-  /**
-   * send post request
-   *
-   * @param  string $url
-   * @param  array  $params
-   * @param  callable|null  $customCurl
-   * @return string
-   */
-  public static function post($url, $params = [], $customCurl = null)
-  {
-    return self::send($url, $params, true, $customCurl);
-  }
-
-  /**
-   * send get request
-   *
-   * @param  string $url
-   * @param  array  $params
-   * @param  callable|null  $customCurl
-   * @return string
-   */
-  public static function get($url, $params = [], $customCurl = null)
-  {
-    return self::send($url, $params, false, $customCurl);
-  }
-
-  /**
-   * send json request
-   *
-   * @param  string $url
-   * @param  array  $params
-   * @return string
-   */
-  public static function json($url, $params = [])
-  {
-    return self::send($url, $params, true, function ($ch) use ($params) {
-      curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
-      curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
-    });
-  }
-
-
-  /**
-   * send request
-   *
-   * @param  string  $url
-   * @param  array   $params
-   * @param  boolean $post  true for send post method
-   * @param  callable|null  $customCurl
-   * @return string
-   */
-  private static function send($url, $params = [], $post = false, $customCurl = null)
-  {
-    if (!$post) {
-      $url .= "?" . http_build_query($params);
-    }
-
-    $ch = curl_init();
-
-    curl_setopt($ch, CURLOPT_URL, $url);
-
-    if (!$post) {
-      curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'GET');
-    } else {
-      curl_setopt($ch, CURLOPT_POST, 1);
-      curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
-    }
-
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-    if ($customCurl) {
-      $customCurl($ch);
-    }
-
-    $result = curl_exec($ch);
-    curl_close($ch);
-    return $result;
-  }
-
-  
-  /**
-   * get client ip
-   *
-   * @return string
-   */
-  public static function ip()
-  {
-    if (!empty($_SERVER['HTTP_CLIENT_IP'])) //check ip from share internet
+    /**
+     * Make GET request
+     *
+     * @param string $url URL
+     * @param array $query Query parameters
+     * @return HttpResponse
+     */
+    public static function get(string $url, array $query = []): HttpResponse
     {
-      $ip = $_SERVER['HTTP_CLIENT_IP'];
-    } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) //to check ip is pass from proxy
-    {
-      $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-    } else {
-      $ip = $_SERVER['REMOTE_ADDR'];
+        return HttpClient::make()->get($url, $query);
     }
-    return $ip;
-  }
 
+    /**
+     * Make POST request
+     *
+     * @param string $url URL
+     * @param mixed $data Request data
+     * @return HttpResponse
+     */
+    public static function post(string $url, mixed $data = []): HttpResponse
+    {
+        return HttpClient::make()->post($url, $data);
+    }
+
+    /**
+     * Make PUT request
+     *
+     * @param string $url URL
+     * @param mixed $data Request data
+     * @return HttpResponse
+     */
+    public static function put(string $url, mixed $data = []): HttpResponse
+    {
+        return HttpClient::make()->put($url, $data);
+    }
+
+    /**
+     * Make PATCH request
+     *
+     * @param string $url URL
+     * @param mixed $data Request data
+     * @return HttpResponse
+     */
+    public static function patch(string $url, mixed $data = []): HttpResponse
+    {
+        return HttpClient::make()->patch($url, $data);
+    }
+
+    /**
+     * Make DELETE request
+     *
+     * @param string $url URL
+     * @param mixed $data Optional request data
+     * @return HttpResponse
+     */
+    public static function delete(string $url, mixed $data = null): HttpResponse
+    {
+        return HttpClient::make()->delete($url, $data);
+    }
+
+    /**
+     * Make JSON POST request
+     *
+     * @param string $url URL
+     * @param array $data JSON data
+     * @return HttpResponse
+     */
+    public static function json(string $url, array $data = []): HttpResponse
+    {
+        return HttpClient::make()->asJson('POST', $url, $data);
+    }
+
+    /**
+     * Create new HTTP client instance
+     *
+     * @param string|null $baseUrl Optional base URL
+     * @return HttpClient
+     */
+    public static function client(?string $baseUrl = null): HttpClient
+    {
+        return HttpClient::make($baseUrl);
+    }
+
+    /**
+     * Create HTTP client with bearer token
+     *
+     * @param string $token Bearer token
+     * @return HttpClient
+     */
+    public static function withToken(string $token): HttpClient
+    {
+        return HttpClient::make()->withToken($token);
+    }
+
+    /**
+     * Create HTTP client with headers
+     *
+     * @param array $headers Headers
+     * @return HttpClient
+     */
+    public static function withHeaders(array $headers): HttpClient
+    {
+        return HttpClient::make()->withHeaders($headers);
+    }
 }

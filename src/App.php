@@ -7,178 +7,374 @@ use Webrium\Debug;
 use Webrium\File;
 use Webrium\Directory;
 
+/**
+ * Application class that provides core functionality for the Webrium framework
+ * Handles autoloading, environment configuration, request processing, and localization
+ */
 class App
 {
+    /**
+     * Root path of the application
+     *
+     * @var string|false
+     */
     private static $rootPath = false;
 
-    private static $local = 'en';
-
-    private static $env = [];
-
-    private static $lang_store = [];
-
+    /**
+     * Current locale for localization
+     *
+     * @var string
+     */
+    private static $locale = 'en';
 
     /**
-     * Initializes the application.
-     * Sets the root path, registers the autoloader, and confirms the URL.
-     * @param string $dir The directory path to set as the root.
+     * Cached environment variables
+     *
+     * @var array
      */
-    public static function root(string $dir)
+    private static $env = [];
+
+    /**
+     * Cached language strings
+     *
+     * @var array
+     */
+    private static $langStore = [];
+
+    /**
+     * Initialize the application with the given root directory
+     *
+     * @param string $dir Root directory path
+     * @return void
+     */
+    public static function initialize(string $dir): void
     {
-        self::rootPath($dir);
-
-        self::init_spl_autoload_register();
-
-        File::runOnce(__DIR__ . '/lib/Helper.php');
-
-        Url::ConfirmUrl();
+        self::setRootPath($dir);
+        self::registerAutoloader();
+        self::loadHelperFunctions();
+        Url::confirmUrl();
     }
 
-    public static function init_spl_autoload_register()
+    /**
+     * Register the class autoloader
+     *
+     * @return void
+     */
+    private static function registerAutoloader(): void
     {
-        spl_autoload_register(function ($class) {
-
-            if (substr($class, 0, 4) == 'App\\') {
-                $class[0] = 'a';
+        spl_autoload_register(function (string $class): void {
+            // Skip classes not in our namespace
+            if (strpos($class, 'Webrium\\') !== 0 && strpos($class, 'App\\') !== 0) {
+                return;
             }
 
-            $class = App::rootPath() . "/$class";
-            $name = str_replace('\\', '/', $class) . ".php";
+            // Convert namespace to path
+            $path = str_replace('\\', DIRECTORY_SEPARATOR, $class);
 
-            if (File::exists($name)) {
-                File::runOnce($name);
-            } else {
-                Debug::createError("Class '" . basename($class) . "' not found", false, false, 500);
+            // Handle App namespace (convert to lowercase 'app' directory)
+            if (strpos($class, 'App\\') === 0) {
+                $path = 'app' . substr($path, 3);
+            }
+
+            $filePath = self::getRootPath() . DIRECTORY_SEPARATOR . $path . '.php';
+
+            if (File::exists($filePath)) {
+                File::runOnce($filePath);
+                return;
+            }
+
+            // Only throw error if in debug mode
+            if (Debug::isDisplayingErrors()) {
+                Debug::triggerError("Class '{$class}' not found at path: " . str_replace(self::getRootPath(), '', $filePath));
             }
         });
     }
 
-
     /**
-     * Sets or gets the root path of the application.
-     * @param mixed $dir
+     * Load helper functions file
+     *
+     * @return void
      */
-    public static function rootPath($dir = false)
+    private static function loadHelperFunctions(): void
     {
-        if ($dir) {
-            self::$rootPath = str_replace('\\', '/', realpath($dir) . '/');
-        }
-
-        return Url::without_trailing_slash(self::$rootPath);
+        File::runOnce(__DIR__ . '/lib/Helper.php');
     }
 
+    /**
+     * Set the application root path
+     *
+     * @param string $dir Directory path
+     * @return void
+     */
+    public static function setRootPath(string $dir): void
+    {
+        $realPath = realpath($dir);
+        if ($realPath === false) {
+            Debug::triggerError("Directory '{$dir}' does not exist or is not accessible");
+            return;
+        }
+
+        self::$rootPath = rtrim(str_replace('\\', '/', $realPath), '/') . '/';
+    }
 
     /**
-     * Gets the input data from the request.
-     * If a name is provided, it returns the value for that name.
-     * If no name is provided, it returns all input data.
-     * @param string $name
-     * @param mixed $default
+     * Get the application root path
+     *
+     * @return string Root path
      */
-    public static function input(string $name = false, $default = null)
+    public static function getRootPath(): string
     {
-        $method = Url::method();
-        $params = [];
-        $json_content_status = ($_SERVER["CONTENT_TYPE"] ?? '') == 'application/json';
+        if (self::$rootPath === false) {
+            Debug::triggerError('Root path has not been initialized. Call App::initialize() first.');
+        }
 
-        if ($json_content_status == false && ($method == 'GET' || $method == 'PUT' || $method == 'DELETE')) {
-            $params = $_GET;
-        } else if ($method == 'POST' || $method == 'PUT' || $method == 'DELETE') {
-            if ($json_content_status) {
-                $params = json_decode(file_get_contents('php://input'), true);
-            } else {
-                $params = $_POST;
+        return rtrim(self::$rootPath, '/');
+    }
+
+    /**
+     * Get request input data
+     *
+     * @param string|null $key Key to retrieve, null to get all input
+     * @param mixed $default Default value if key is not found
+     * @return mixed Request data or default value
+     */
+    public static function input(?string $key = null, $default = null)
+    {
+        static $requestData = null;
+
+        // Parse request data only once
+        if ($requestData === null) {
+            $requestData = [];
+            $method = Url::method();
+            $contentType = $_SERVER["CONTENT_TYPE"] ?? '';
+            $isJson = strpos($contentType, 'application/json') !== false;
+
+            // Handle GET requests
+            if ($method === 'GET') {
+                $requestData = $_GET;
             }
+            // Handle POST/PUT/DELETE requests
+            elseif (in_array($method, ['POST', 'PUT', 'DELETE'])) {
+                if ($isJson) {
+                    $jsonInput = file_get_contents('php://input');
+                    $decoded = json_decode($jsonInput, true);
 
+                    // Check for JSON decoding errors
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        Debug::triggerError('Invalid JSON input: ' . json_last_error_msg(), false, false, 400);
+                    } else {
+                        $requestData = $decoded ?? [];
+                    }
+                } else {
+                    $requestData = $_POST;
+                }
+            }
         }
 
-        if ($name != false) {
-            return $params[$name] ?? $default;
+        if ($key === null) {
+            return $requestData;
         }
 
-        return $params;
+        return $requestData[$key] ?? $default;
     }
 
-    public static function ReturnData($data)
+    /**
+     * Return data with appropriate content type headers
+     *
+     * @param mixed $data Data to return (array, object, or string)
+     * @param int $statusCode HTTP status code (default: 200)
+     * @return void
+     */
+    public static function returnData($data, int $statusCode = 200): void
     {
+        http_response_code($statusCode);
+
         if (is_array($data) || is_object($data)) {
-            header('Content-Type: application/json ; charset=utf-8 ');
+            header('Content-Type: application/json; charset=utf-8');
             $data = json_encode($data);
+
+            // Check for JSON encoding errors
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Debug::triggerError('JSON encoding error: ' . json_last_error_msg(), false, false, 500);
+                $data = json_encode(['error' => 'Internal server error']);
+            }
         }
 
         echo $data;
+        exit;
     }
-
 
     /**
-     * Gets the value of an environment variable.
+     * Get an environment variable
      *
-     * @param  string  $key
-     * @param  mixed   $default
-     * @return mixed
+     * @param string $key Environment variable name
+     * @param mixed $default Default value if not found
+     * @return mixed Environment value or default
      */
-    public static function env($name, $default = false)
+    public static function env(string $key, $default = null)
     {
-        if (self::$env == false) {
-            if (File::exists(root_path('.env')) == false) {
-                Debug::createError('Dotenv: Environment file .env not found. Create file with your environment settings at project root files');
-            }
-            $ENV_CONTENT = File::getContent(root_path('.env'));
-            $lines = explode("\n", $ENV_CONTENT);
-
-            foreach ($lines as $line) {
-                $arr = explode("=", $line);
-                $key = trim($arr[0] ?? '');
-                $value = trim($arr[1] ?? '');
-
-                self::$env[$key] = $value;
-            }
+        // Load environment variables if not already loaded
+        if (empty(self::$env)) {
+            self::loadEnvironmentVariables();
         }
 
-        if (isset(self::$env[$name])) {
-            return self::$env[$name];
-        } else {
-            return $default;
+        return self::$env[$key] ?? $default;
+    }
+
+    /**
+     * Load environment variables from .env file
+     *
+     * @return void
+     */
+    private static function loadEnvironmentVariables(): void
+    {
+        $envPath = self::getRootPath() . '/.env';
+
+        if (!File::exists($envPath)) {
+            // Don't throw error in production mode
+            if (Debug::isDisplayingErrors()) {
+                Debug::triggerError('Environment file .env not found at: ' . $envPath);
+            }
+            return;
+        }
+
+        $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
+        foreach ($lines as $line) {
+            // Skip comments and empty lines
+            if (strpos(trim($line), '#') === 0) {
+                continue;
+            }
+
+            // Parse key-value pairs
+            if (strpos($line, '=') !== false) {
+                [$name, $value] = explode('=', $line, 2);
+                $name = trim($name);
+                $value = trim($value);
+
+                // Remove quotes if present
+                if (preg_match('/^([\'"])(.*)\1$/', $value, $matches)) {
+                    $value = $matches[2];
+                }
+
+                // Handle special values
+                if ($value === 'true')
+                    $value = true;
+                elseif ($value === 'false')
+                    $value = false;
+                elseif ($value === 'null')
+                    $value = null;
+
+                self::$env[$name] = $value;
+            }
         }
     }
 
-
-    public static function setLocale($local)
+    /**
+     * Set the application locale
+     *
+     * @param string $locale Locale identifier (e.g., 'en', 'fa')
+     * @return void
+     */
+    public static function setLocale(string $locale): void
     {
-        self::$local = $local;
+        self::$locale = $locale;
     }
 
-    public static function isLocale($local)
+    /**
+     * Check if the current locale matches the given locale
+     *
+     * @param string $locale Locale to check
+     * @return bool True if matches current locale
+     */
+    public static function isLocale(string $locale): bool
     {
-        return ($local == self::$local) ? true : false;
+        return $locale === self::$locale;
     }
 
-    public static function getLocale()
+    /**
+     * Get the current application locale
+     *
+     * @return string Current locale
+     */
+    public static function getLocale(): string
     {
-        return self::$local;
+        return self::$locale;
     }
 
-    public static function disableCache()
+    /**
+     * Disable browser caching for the response
+     *
+     * @return void
+     */
+    public static function disableCache(): void
     {
         header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
         header("Cache-Control: post-check=0, pre-check=0", false);
         header("Pragma: no-cache");
     }
 
-    public static function lang($name)
+    /**
+     * Get a localized string
+     *
+     * @param string $key Translation key in format 'file.key'
+     * @param array $replacements Key-value pairs to replace in the translation
+     * @return string|false Translated string or false if not found
+     */
+    public static function trans(string $key, array $replacements = [])
     {
-
-        $arr = explode('.', $name);
-        $file = $arr[0];
-        $variable = $arr[1];
-        $locale = App::getLocale();
-        $index_name = "$locale.$file";
-        if (!isset(self::$lang_store[$index_name])) {
-            $path = Directory::path('langs');
-            $content = include_once("$path/$locale/$file.php");
-            self::$lang_store[$index_name] = $content;
+        $parts = explode('.', $key, 2);
+        if (count($parts) !== 2) {
+            Debug::triggerError("Invalid translation key format: {$key}. Expected format 'file.key'");
+            return false;
         }
 
-        return self::$lang_store[$index_name][$variable] ?? false;
+        [$file, $translationKey] = $parts;
+        $locale = self::getLocale();
+        $cacheKey = "{$locale}.{$file}";
+
+        // Load language file if not cached
+        if (!isset(self::$langStore[$cacheKey])) {
+            $langPath = Directory::path('langs');
+            $filePath = "{$langPath}/{$locale}/{$file}.php";
+
+            if (!File::exists($filePath)) {
+                Debug::triggerError("Language file not found: {$filePath}");
+                return false;
+            }
+
+            $translations = include $filePath;
+
+            // Validate language file returns an array
+            if (!is_array($translations)) {
+                Debug::triggerError("Language file must return an array: {$filePath}");
+                return false;
+            }
+
+            self::$langStore[$cacheKey] = $translations;
+        }
+
+        // Get translation with fallback to key if not found
+        $translation = self::$langStore[$cacheKey][$translationKey] ?? $translationKey;
+
+        // Replace placeholders
+        foreach ($replacements as $placeholder => $value) {
+            $translation = str_replace(":{$placeholder}", $value, $translation);
+        }
+
+        return $translation;
+    }
+
+
+    /**
+     * Initialize the debugging system and execute the application's routing logic.
+     * This method should be called after initialization to start processing the current request.
+     *
+     * @return void
+     */
+    public static function run()
+    {
+        Debug::initialize();
+        Route::run();
     }
 }
