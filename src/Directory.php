@@ -14,7 +14,7 @@ class Directory
 
   public static function path($name)
   {
-    return App::rootPath().'/'.self::$params[$name];
+    return App::getRootPath().'/'.self::$params[$name];
   }
 
   public static function get($name)
