@@ -64,7 +64,7 @@ class App
     {
         spl_autoload_register(function (string $class): void {
             // Skip classes not in our namespace
-            if (strpos($class, 'Webrium\\') !== 0 && strpos($class, 'App\\') !== 0) {
+            if (strpos($class, 'Webrium\\') !== 0 && strpos(strtolower($class), 'app\\') !== 0) {
                 return;
             }
 
