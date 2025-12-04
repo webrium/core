@@ -1,126 +1,165 @@
 <?php
+
+declare(strict_types=1);
+
 namespace webrium;
+
+use InvalidArgumentException;
 
 class Jwt
 {
-    private $secretKey; // The secret key used to sign the token
-    private $algorithm; // The algorithm used to sign the token
+    /**
+     * Map JWT standard algorithm names to PHP hash algorithms.
+     */
+    private const ALGORITHMS = [
+        'HS256' => 'sha256',
+        'HS384' => 'sha384',
+        'HS512' => 'sha512',
+    ];
 
     /**
      * Constructor
      *
-     * @param string $secretKey The secret key used to sign the token
-     * @param string $algorithm The algorithm used to sign the token (default: HS256)
+     * @param string $secretKey The secret key used to sign the token.
+     * @param string $algo      The JWT algorithm (e.g., HS256, HS512). Default: HS256.
+     * @throws InvalidArgumentException If the algorithm is not supported.
      */
-    public function __construct($secretKey, $algorithm = 'sha3-256')
-    {
-        $this->secretKey = $secretKey;
-        $this->algorithm = $algorithm;
+    public function __construct(
+        private string $secretKey,
+        private string $algo = 'HS256'
+    ) {
+        if (!array_key_exists($this->algo, self::ALGORITHMS)) {
+            throw new InvalidArgumentException("Algorithm '{$this->algo}' is not supported.");
+        }
     }
 
     /**
-     * Generate a JWT token
+     * Generate a JWT token.
      *
-     * @param array $payload The payload to include in the token
-     * @return string The JWT token
+     * @param array $payload The payload data to include in the token.
+     * @return string The signed JWT token.
      */
-    public function generateToken($payload)
+    public function generateToken(array $payload): string
     {
         $header = [
             'typ' => 'JWT',
-            'alg' => $this->algorithm
+            'alg' => $this->algo
         ];
 
-        $header = json_encode($header);
-        $payload = json_encode($payload);
+        // Encode Header and Payload
+        $base64UrlHeader = self::base64UrlEncode(json_encode($header));
+        $base64UrlPayload = self::base64UrlEncode(json_encode($payload));
 
-        $base64UrlHeader = $this->base64UrlEncode($header);
-        $base64UrlPayload = $this->base64UrlEncode($payload);
+        // Create Signature
+        $signature = $this->sign($base64UrlHeader . "." . $base64UrlPayload);
+        $base64UrlSignature = self::base64UrlEncode($signature);
 
-        $signature = hash_hmac($this->algorithm, $base64UrlHeader . "." . $base64UrlPayload, $this->secretKey, true);
-        $base64UrlSignature = $this->base64UrlEncode($signature);
-
-        $jwt = $base64UrlHeader . "." . $base64UrlPayload . "." . $base64UrlSignature;
-
-        return $jwt;
+        return $base64UrlHeader . "." . $base64UrlPayload . "." . $base64UrlSignature;
     }
 
     /**
-     * Verify a JWT token
+     * Verify a JWT token and retrieve the payload.
      *
-     * @param string $jwt The JWT token to verify
-     * @return mixed The decoded payload if the token is valid, false otherwise
+     * @param string $jwt The JWT token string.
+     * @return array|null The decoded payload if valid, null otherwise.
      */
-    public function verifyToken($jwt)
+    public function verifyToken(string $jwt): ?array
     {
-        $jwtArr = explode('.', $jwt);
+        $parts = explode('.', $jwt);
 
-        if (count($jwtArr) !== 3) {
-            return false;
+        if (count($parts) !== 3) {
+            return null;
         }
 
-        $header = $jwtArr[0];
-        $payload = $jwtArr[1];
-        $signatureProvided = $jwtArr[2];
+        [$header, $payload, $providedSignature] = $parts;
 
-        $base64UrlHeader = $header;
-        $base64UrlPayload = $payload;
+        // Re-calculate signature based on header and payload
+        $calculatedSignature = $this->sign($header . '.' . $payload);
+        $base64UrlCalculatedSignature = self::base64UrlEncode($calculatedSignature);
 
-        $token = $base64UrlHeader . '.' . $base64UrlPayload;
-
-        $data = hash_hmac($this->algorithm, $token, $this->secretKey, true);
-
-        if (function_exists('hash_equals')) {
-            $isValid = hash_equals($signatureProvided, $this->base64UrlEncode($data));
-        } else {
-            $isValid = $this->base64UrlEncode($data) === $signatureProvided;
+        // Verify signature using timing-attack safe comparison
+        if (!hash_equals($base64UrlCalculatedSignature, $providedSignature)) {
+            return null;
         }
 
-        return $isValid ? Jwt::decodeToken($payload) : false;
+        // Decode payload
+        return self::decodePayload($payload);
     }
 
     /**
-     * Decode the payload of a JWT token
+     * Get the payload from a JWT token without verification (Use with caution).
      *
-     * @param string $payload The payload to decode
-     * @return array The decoded payload
+     * @param string $jwt The JWT token.
+     * @return array|null The decoded payload or null if format is invalid.
      */
-    private static function decodeToken($payload)
+    public static function getPayload(string $jwt): ?array
     {
-        return json_decode(base64_decode($payload));
-    }
+        $parts = explode('.', $jwt);
 
-    private function base64UrlEncode($text)
-    {
-        $base64 = base64_encode($text);
-        $base64Url = strtr($base64, '+/', '-_');
-        return rtrim($base64Url, '=');
-    }
-
-    private function base64UrlDecode($base64Url)
-    {
-        $base64 = strtr($base64Url, '-_', '+/');
-        $text = base64_decode($base64);
-        return $text;
-    }
-
-
-    /**
-     * Get the payload from a JWT token
-     *
-     * @param string $jwt_token The JWT token
-     * @return array|false The decoded payload if the token is valid, false otherwise
-     */
-    public static function getPayload($jwt_token)
-    {
-        $jwtArr = explode('.', $jwt_token);
-
-        if (count($jwtArr) !== 3) {
-            return false;
+        if (count($parts) !== 3) {
+            return null;
         }
 
-        $payload = $jwtArr[1];
+        return self::decodePayload($parts[1]);
+    }
 
-        return self::decodeToken($payload);
+    /**
+     * Generate the HMAC signature.
+     *
+     * @param string $data The data to sign (header.payload).
+     * @return string The raw binary signature.
+     */
+    private function sign(string $data): string
+    {
+        return hash_hmac(
+            self::ALGORITHMS[$this->algo],
+            $data,
+            $this->secretKey,
+            true
+        );
+    }
+
+    /**
+     * Decode the Base64Url encoded payload.
+     *
+     * @param string $base64UrlPayload
+     * @return array|null
+     */
+    private static function decodePayload(string $base64UrlPayload): ?array
+    {
+        $json = self::base64UrlDecode($base64UrlPayload);
+        $data = json_decode($json, true); // true for associative array
+
+        return is_array($data) ? $data : null;
+    }
+
+    /**
+     * Encode data to Base64Url format.
+     *
+     * @param string $data
+     * @return string
+     */
+    private static function base64UrlEncode(string $data): string
+    {
+        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+    }
+
+    /**
+     * Decode data from Base64Url format.
+     *
+     * @param string $data
+     * @return string
+     */
+    private static function base64UrlDecode(string $data): string
+    {
+        $base64 = strtr($data, '-_', '+/');
+        
+        // Fix padding if necessary
+        $remainder = strlen($base64) % 4;
+        if ($remainder) {
+            $base64 .= str_repeat('=', 4 - $remainder);
+        }
+
+        return base64_decode($base64);
     }
 }
