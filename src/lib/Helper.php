@@ -4,6 +4,7 @@ use Webrium\Url;
 use Webrium\View;
 use Webrium\Directory;
 use Webrium\Route;
+use Webrium\Vite;
 
 
 function url($str='')
@@ -103,5 +104,15 @@ function env($name, $default = false){
 
 
 function route($name){
-  return Route::getRouteByName($name);
+  return Route::route($name);
+}
+
+/**
+ * Simplifies the main call from the view.
+ * * @param string $entryPoint The main entry point file.
+ * @return string The generated HTML tags.
+ */
+function vite_assets(): string
+{
+    return Vite::getInstance()->assets();
 }

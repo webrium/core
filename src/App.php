@@ -52,7 +52,7 @@ class App
         self::setRootPath($dir);
         self::registerAutoloader();
         self::loadHelperFunctions();
-        Url::confirmUrl();
+        Url::enforce();
     }
 
     /**
