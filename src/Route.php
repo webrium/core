@@ -203,7 +203,7 @@ class Route
      * @return string Generated URL
      * @throws \Exception
      */
-    public static function getRoute(string $name, array $params = [])
+    public static function route(string $name, array $params = [])
     {
         if (!isset(self::$routeNames[$name])) {
             Debug::triggerError("Route with name '$name' not found.");
