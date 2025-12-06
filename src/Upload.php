@@ -1,325 +1,356 @@
 <?php
+
+declare(strict_types=1);
+
 namespace Webrium;
+
+use Exception;
+use finfo;
+use Throwable;
 
 class Upload
 {
+    protected string $name;
+    protected string $tmpName;
+    protected string $type;
+    protected int $size;
+    protected int $error;
 
-  protected $multipleFiles = false;
-  protected $inputName;
-  protected $files;
-  protected $savePath;
-  protected $saveName = false;
-  protected $status;
+    protected ?string $destinationPath = null;
+    protected ?string $targetFileName = null;
+    protected array $validationErrors = [];
 
-  protected $errors = [];
-  protected $maxSize = false;
-  protected $limitExtention = false;
-  protected $limitType = false;
+    protected ?int $maxSize = null;
+    protected array $allowedExtensions = [];
+    protected array $allowedMimeTypes = [];
 
+    protected bool $preventOverwrite = true;
+    protected int $maxNameLength = 255;
 
-  function __construct($name = false)
-  {
-    if ($name) {
-      $this->inputName = $name;
+    protected static ?finfo $finfo = null;
 
-      if ($this->exists() && is_array($this->input()['name'])) {
-        $this->multipleFiles = true;
-        $this->generateFilesArray();
-      } else if ($this->exists() && is_string($this->input()['name'])) {
-        $this->files = [$this->input()];
-      }
-    }
-  }
-
-  public function initSingleFile($inputName, $files, $_class)
-  {
-    $this->inputName = $inputName;
-    $this->files = $files;
-
-    if ($_class->maxSize) {
-      $this->maxSize($_class->maxSize['number'], $_class->maxSize['errorText']);
+    protected function __construct(array $fileData)
+    {
+        $this->name    = (string) ($fileData['name'] ?? '');
+        $this->tmpName = (string) ($fileData['tmp_name'] ?? '');
+        $this->type    = (string) ($fileData['type'] ?? '');
+        $this->size    = (int) ($fileData['size'] ?? 0);
+        $this->error   = (int) ($fileData['error'] ?? UPLOAD_ERR_NO_FILE);
     }
 
-    if ($_class->limitExtention) {
-      $this->allowExtensions($_class->limitExtention['array'], $_class->limitExtention['errorText']);
+    /**
+     * Create Upload instance(s) from input name.
+     * * @param string $inputName The name of the file input field
+     * @return Upload|array|null Returns Upload object, array of Upload objects, or null if empty
+     */
+    public static function fromInput(string $inputName): Upload|array|null
+    {
+        if (!isset($_FILES[$inputName])) {
+            return null;
+        }
+
+        $file = $_FILES[$inputName];
+
+        // Handle Array Input (e.g., <input name="files[]" ...>)
+        if (is_array($file['name'])) {
+            $collection = [];
+            $count = count($file['name']);
+            
+            for ($i = 0; $i < $count; $i++) {
+                if (empty($file['name'][$i])) {
+                    continue;
+                }
+                
+                $collection[] = new static([
+                    'name'     => $file['name'][$i],
+                    'type'     => $file['type'][$i] ?? '',
+                    'tmp_name' => $file['tmp_name'][$i] ?? '',
+                    'error'    => $file['error'][$i] ?? UPLOAD_ERR_NO_FILE,
+                    'size'     => $file['size'][$i] ?? 0,
+                ]);
+            }
+            return empty($collection) ? null : $collection;
+        }
+
+        // Handle Single Input
+        if (empty($file['name'])) {
+            return null;
+        }
+
+        return new static($file);
     }
 
-    if ($_class->limitType) {
-      $this->allowTypes($_class->limitType['array'], $_class->limitType['errorText']);
-    }
-  }
+    // --- Configuration Methods ---
 
-  public function input()
-  {
-    return $_FILES[$this->inputName] ?? false;
-  }
-
-  public function first()
-  {
-    return $this->files[0] ?? false;
-  }
-
-  public function getArray()
-  {
-    return $this->files;
-  }
-
-
-  public function has($name)
-  {
-    return isset($_FILES[$name]);
-  }
-
-  public function exists()
-  {
-    if ($this->has($this->inputName) && $this->input() && !empty($this->input()['name'])) {
-      return true;
+    public function maxKB(int $kb): self
+    {
+        $this->maxSize = $kb * 1024;
+        return $this;
     }
 
-    return false;
-  }
-
-  public function count()
-  {
-    if ($this->multipleFiles) {
-      return count($this->input()['name']);
-    } elseif ($this->exists() && is_string($this->input()['name'])) {
-      return 1;
-    } else {
-      return 0;
-    }
-  }
-
-  public function generateFilesArray()
-  {
-    $files = [];
-
-    foreach ($this->input() as $key => $array) {
-
-      foreach ($array as $index => $string) {
-        $files[$index][$key] = $string;
-      }
-
-    }
-    return $this->files = $files;
-  }
-
-  public function each($func = false)
-  {
-    $array = [];
-
-
-    foreach ($this->getArray() as $key => $file) {
-
-      $one = new Upload;
-
-
-      $one->initSingleFile($this->inputName, [$file], $this);
-
-      if ($func) {
-        $func($one);
-      } else {
-        $array[] = $one;
-      }
-
+    public function maxMB(int $mb): self
+    {
+        $this->maxSize = $mb * 1024 * 1024;
+        return $this;
     }
 
-    return $array;
-  }
-
-  public function get()
-  {
-    return $this->each();
-  }
-
-  public function getClientOriginalName()
-  {
-    return $this->first()['name'];
-  }
-
-  public function extension()
-  {
-    $name = $this->getClientOriginalName();
-    $arr = explode('.', $name);
-    return end($arr);
-  }
-
-  public function name($name = false, $setCustomExtention = false)
-  {
-    if ($name) {
-      $this->saveName = $name;
-
-      if (!$setCustomExtention) {
-        $this->saveName .= '.' . $this->extension();
-      } else {
-        $this->saveName .= ".$setCustomExtention";
-      }
-
-      return $this;
-    } else {
-      return $this->saveName;
-    }
-  }
-
-  public function tmpName()
-  {
-    return $this->first()['tmp_name'];
-  }
-
-  public function size()
-  {
-    return $this->first()['size'];
-  }
-
-  public function error()
-  {
-    return $this->first()['error'];
-  }
-
-  public function getErrors()
-  {
-    return $this->errors;
-  }
-
-  public function getFirstError()
-  {
-    if (isset($this->getErrors()[0])) {
-      return $this->getErrors()[0];
-    } else {
-      return '';
-    }
-  }
-
-
-  public function type()
-  {
-    return $this->first()['type'];
-  }
-
-  public function path($savePath = false)
-  {
-    if ($savePath) {
-      $this->savePath = $savePath;
-      return $this;
-    } else {
-      return $this->savePath;
-    }
-  }
-
-  public function hashName()
-  {
-    $this->name(\md5_file($this->tmpName()));
-    return $this;
-  }
-
-  public function save()
-  {
-
-    // make dir if not exsits
-    if (!\is_dir($this->savePath)) {
-      mkdir($this->savePath, 0777, true);
+    public function allowExtension(array|string $extensions): self
+    {
+        if (is_string($extensions)) {
+            $extensions = explode(',', $extensions);
+        }
+        
+        // Remove whitespace and leading dots, then lowercase
+        $this->allowedExtensions = array_map(function($ext) {
+            return ltrim(strtolower(trim($ext)), '.');
+        }, $extensions);
+        
+        return $this;
     }
 
-    if (!$this->validate()) {
-      $this->status = false;
-      return;
+    public function allowMimeType(array|string $types): self
+    {
+        if (is_string($types)) {
+            $types = explode(',', $types);
+        }
+        $this->allowedMimeTypes = array_map('trim', $types);
+        return $this;
     }
 
-    if (!$this->name()) {
-      $this->saveName = $this->getClientOriginalName();
+    public function to(string $path): self
+    {
+        $this->destinationPath = rtrim($path, DIRECTORY_SEPARATOR);
+        return $this;
     }
 
-    $full_path = "$this->savePath/" . $this->name();
-
-    $this->status = \move_uploaded_file(
-      $this->tmpName(),
-      $full_path
-    );
-
-    return $this->status();
-  }
-
-  public function status()
-  {
-    return $this->status;
-  }
-
-  /**
-   * Limits file size
-   * @param  int    $number    Amount in kilobytes
-   * @param  string $errorText
-   */
-  public function maxSize(int $number, $errorText = 'File size is more than allowed')
-  {
-    $this->maxSize = ['number' => $number, 'errorText' => $errorText];
-
-    if (($this->size() / 1000) > $number) {
-      $this->replaceStr($errorText);
-      $this->errors[] = $errorText;
-    }
-    return $this;
-  }
-
-  /**
-   * Limits file extension
-   * @param  array $array  example ['png','jpg']
-   * @param  string $errorText
-   */
-  public function allowExtensions($array, $errorText = 'File type is not allowed')
-  {
-    $this->limitExtention = ['array' => $array, 'errorText' => $errorText];
-
-    if (!in_array($this->extension(), $array)) {
-      $this->replaceStr($errorText);
-      $this->errors[] = $errorText;
+    public function asName(string $name): self
+    {
+        $ext = $this->getExtension();
+        // Sanitize the custom name as well to prevent paths like "../../evil"
+        $this->targetFileName = $this->sanitizeFileName($name);
+        
+        // Re-append extension if it was lost or not included
+        if ($ext && !str_ends_with($this->targetFileName, ".$ext")) {
+            $this->targetFileName .= ".$ext";
+        }
+        
+        return $this;
     }
 
-    return $this;
-  }
-
-  /**
-   * Limits file type
-   * @param  array $array  example ['image/jpeg']
-   * @param  string $errorText
-   */
-  public function allowTypes($array, $errorText = 'File type is not allowed')
-  {
-    $this->limitType = ['array' => $array, 'errorText' => $errorText];
-
-    if (!in_array($this->type(), $array)) {
-      $this->replaceStr($errorText);
-      $this->errors[] = $errorText;
-    }
-    return $this;
-  }
-
-  public function checkWritable()
-  {
-    return \is_writable($this->path());
-  }
-
-  public function validate()
-  {
-
-    if (!$this->checkWritable()) {
-      $this->errors[] = 'There is no permission to write the file';
+    public function useRandomName(): self
+    {
+        $ext = $this->getExtension();
+        $this->targetFileName = bin2hex(random_bytes(16));
+        
+        if ($ext !== '') {
+            $this->targetFileName .= '.' . $ext;
+        }
+        return $this;
     }
 
-    if ($this->errors && count($this->errors) > 0) {
-      return false;
-    } else {
-      return true;
+    public function allowOverwrite(bool $allow = true): self
+    {
+        $this->preventOverwrite = !$allow;
+        return $this;
     }
-  }
 
-  public function replaceStr(&$text)
-  {
-    $text = str_replace('@name', $this->getClientOriginalName(), $text);
+    // --- Action Methods ---
 
-    
-    $text = str_replace('@size', $this->size(), $text);
+    public function validate(): bool
+    {
+        $this->validationErrors = [];
 
-    if($this->maxSize)
-      $text = str_replace('@maxSize', $this->maxSize['number'], $text);
-  }
+        if ($this->error !== UPLOAD_ERR_OK) {
+            $this->validationErrors[] = $this->getUploadErrorMessage($this->error);
+            return false;
+        }
+
+        if (!is_uploaded_file($this->tmpName)) {
+            $this->validationErrors[] = 'Temporary file is not a valid uploaded file.';
+            return false;
+        }
+
+        if ($this->maxSize !== null && $this->size > $this->maxSize) {
+            $this->validationErrors[] = "File size ({$this->getSizeFormatted()}) exceeds the limit.";
+        }
+
+        if (!empty($this->allowedExtensions)) {
+            $ext = $this->getExtension();
+            if ($ext === '' || !in_array($ext, $this->allowedExtensions, true)) {
+                $this->validationErrors[] = "Extension '.{$ext}' is not allowed.";
+            }
+        }
+
+        if (!empty($this->allowedMimeTypes)) {
+            $realMime = $this->getMimeType();
+            if ($realMime === '') {
+                $this->validationErrors[] = "Unable to determine file mime type.";
+            } elseif (!in_array($realMime, $this->allowedMimeTypes, true)) {
+                $this->validationErrors[] = "File type '{$realMime}' is not allowed.";
+            }
+        }
+
+        return empty($this->validationErrors);
+    }
+
+    public function save(bool $throwOnError = false): bool|string
+    {
+        if (!$this->destinationPath) {
+            $error = "Destination path not set. Use ->to('/path')";
+            if ($throwOnError) throw new Exception($error);
+            $this->validationErrors[] = $error;
+            return false;
+        }
+
+        if (!$this->validate()) {
+            if ($throwOnError) throw new Exception(implode('; ', $this->validationErrors));
+            return false;
+        }
+
+        // Ensure directory exists
+        if (!is_dir($this->destinationPath)) {
+            if (!mkdir($this->destinationPath, 0755, true)) {
+                $error = "Failed to create directory: {$this->destinationPath}";
+                if ($throwOnError) throw new Exception($error);
+                $this->validationErrors[] = $error;
+                return false;
+            }
+        }
+
+        if (!is_writable($this->destinationPath)) {
+            $error = "Destination path is not writable.";
+            if ($throwOnError) throw new Exception($error);
+            $this->validationErrors[] = $error;
+            return false;
+        }
+
+        // Prepare Filename
+        $finalName = $this->targetFileName ?? $this->sanitizeFileName($this->name);
+        $finalName = $this->ensureNameLength($finalName);
+        $fullPath  = $this->destinationPath . DIRECTORY_SEPARATOR . $finalName;
+
+        // Handle Overwrite / Unique naming
+        if ($this->preventOverwrite && file_exists($fullPath)) {
+            $finalName = $this->generateUniqueName($finalName);
+            $fullPath  = $this->destinationPath . DIRECTORY_SEPARATOR . $finalName;
+        }
+
+        // Move File
+        if (!move_uploaded_file($this->tmpName, $fullPath)) {
+            $error = "Failed to move uploaded file.";
+            if ($throwOnError) throw new Exception($error);
+            $this->validationErrors[] = $error;
+            return false;
+        }
+
+        // Set Permissions
+        @chmod($fullPath, 0644);
+
+        return $finalName;
+    }
+
+    // --- Helpers ---
+
+    public function getExtension(): string
+    {
+        return strtolower(pathinfo($this->name, PATHINFO_EXTENSION));
+    }
+
+    public function getOriginalName(): string
+    {
+        return $this->name;
+    }
+
+    public function getMimeType(): string
+    {
+        if (!self::$finfo) {
+            self::$finfo = new finfo(FILEINFO_MIME_TYPE);
+        }
+        try {
+            $mime = self::$finfo->file($this->tmpName);
+            return $mime ?: '';
+        } catch (Throwable $e) {
+            return '';
+        }
+    }
+
+    public function getErrors(): array
+    {
+        return $this->validationErrors;
+    }
+
+    public function getFirstError(): string
+    {
+        return $this->validationErrors[0] ?? '';
+    }
+
+    protected function getSizeFormatted(): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $size = max(0, $this->size);
+        $power = $size > 0 ? (int) floor(log($size, 1024)) : 0;
+        $power = min($power, count($units) - 1);
+        return number_format($size / pow(1024, $power), 2) . ' ' . $units[$power];
+    }
+
+    protected function sanitizeFileName(string $name): string
+    {
+        $name = basename($name);
+        // Allow only alphanumeric, dot, underscore, hyphen
+        $name = preg_replace('/[^A-Za-z0-9\.\-_]/', '', $name);
+        
+        // Prevent multiple dots acting as double extensions
+        if (substr_count($name, '.') > 1) {
+            $parts = explode('.', $name);
+            $ext = array_pop($parts);
+            $name = implode('-', $parts) . '.' . $ext;
+        }
+        
+        $name = ltrim($name, '.');
+        return $name ?: bin2hex(random_bytes(8));
+    }
+
+    protected function ensureNameLength(string $name): string
+    {
+        if (strlen($name) <= $this->maxNameLength) {
+            return $name;
+        }
+        
+        $ext = pathinfo($name, PATHINFO_EXTENSION);
+        $base = pathinfo($name, PATHINFO_FILENAME);
+        
+        // Calculate allowed base length: Max - (Dot + Ext length)
+        $allowed = $this->maxNameLength - (strlen($ext) ? strlen($ext) + 1 : 0);
+        $base = substr($base, 0, max(1, $allowed)); 
+        
+        return $base . ($ext ? '.' . $ext : '');
+    }
+
+    protected function generateUniqueName(string $name): string
+    {
+        $ext = pathinfo($name, PATHINFO_EXTENSION);
+        $base = pathinfo($name, PATHINFO_FILENAME);
+        $counter = 0;
+        
+        do {
+            $counter++;
+            $candidate = $base . '-' . $counter . ($ext ? '.' . $ext : '');
+        } while (file_exists($this->destinationPath . DIRECTORY_SEPARATOR . $candidate));
+        
+        return $candidate;
+    }
+
+    protected function getUploadErrorMessage(int $code): string
+    {
+        return match ($code) {
+            UPLOAD_ERR_INI_SIZE   => 'The uploaded file exceeds the upload_max_filesize directive in php.ini',
+            UPLOAD_ERR_FORM_SIZE  => 'The uploaded file exceeds the MAX_FILE_SIZE directive in the HTML form',
+            UPLOAD_ERR_PARTIAL    => 'The uploaded file was only partially uploaded',
+            UPLOAD_ERR_NO_FILE    => 'No file was uploaded',
+            UPLOAD_ERR_NO_TMP_DIR => 'Missing a temporary folder',
+            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+            UPLOAD_ERR_EXTENSION  => 'File upload stopped by extension',
+            default               => 'Unknown upload error',
+        };
+    }
 }
