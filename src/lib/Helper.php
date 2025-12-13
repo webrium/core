@@ -5,6 +5,7 @@ use Webrium\View;
 use Webrium\Directory;
 use Webrium\Route;
 use Webrium\Vite;
+use Zog\Zog;
 
 
 function url($str='')
@@ -21,9 +22,8 @@ function current_url()
 
 function view($name,$params=[])
 {
-  return View::render($name,$params);
+  return Zog::render($name, $params);
 }
-
 
 function loadview($name)
 {
