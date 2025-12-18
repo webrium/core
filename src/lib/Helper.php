@@ -103,8 +103,8 @@ function env($name, $default = false){
 }
 
 
-function route($name){
-  return Route::route($name);
+function route($name, $params){
+  return Route::route($name, $params);
 }
 
 /**
