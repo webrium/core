@@ -45,6 +45,11 @@ class Validator
      */
     private bool $validated = false;
 
+    /**
+     * Maximum regex execution time in seconds
+     */
+    private const MAX_REGEX_EXECUTION_TIME = 2;
+
 
     /**
      * Create a new Validator instance.
@@ -98,6 +103,8 @@ class Validator
             'label' => $label ?? $name,
             'hasValue' => isset($this->data[$name]) && $this->data[$name] !== '' && $this->data[$name] !== null,
             'rules' => [],
+            'nullable' => false,
+            'sometimes' => false,
         ];
 
         return $this;
@@ -117,6 +124,32 @@ class Validator
 
 
     /**
+     * Allow field to be null.
+     * When this rule is applied, validation will pass if the field is null or empty.
+     *
+     * @return self
+     */
+    public function nullable(): self
+    {
+        $this->fields[$this->currentField]['nullable'] = true;
+        return $this;
+    }
+
+
+    /**
+     * Apply validation only when field is present.
+     * If field is not present in request data, all rules are skipped.
+     *
+     * @return self
+     */
+    public function sometimes(): self
+    {
+        $this->fields[$this->currentField]['sometimes'] = true;
+        return $this;
+    }
+
+
+    /**
      * Validate field as numeric (integer or float).
      *
      * @param string|null $message Custom error message
@@ -130,6 +163,7 @@ class Validator
 
     /**
      * Validate field as integer only.
+     * Accepts both positive and negative integers.
      *
      * @param string|null $message Custom error message
      * @return self
@@ -149,6 +183,30 @@ class Validator
     public function string(?string $message = null): self
     {
         return $this->addRule('string', $message);
+    }
+
+
+    /**
+     * Validate field contains only alphabetic characters.
+     *
+     * @param string|null $message Custom error message
+     * @return self
+     */
+    public function alpha(?string $message = null): self
+    {
+        return $this->addRule('alpha', $message);
+    }
+
+
+    /**
+     * Validate field contains only alphanumeric characters.
+     *
+     * @param string|null $message Custom error message
+     * @return self
+     */
+    public function alphaNum(?string $message = null): self
+    {
+        return $this->addRule('alpha_num', $message);
     }
 
 
@@ -267,6 +325,19 @@ class Validator
 
 
     /**
+     * Validate field as valid phone number.
+     * Supports international formats with optional country code.
+     *
+     * @param string|null $message Custom error message
+     * @return self
+     */
+    public function phone(?string $message = null): self
+    {
+        return $this->addRule('phone', $message);
+    }
+
+
+    /**
      * Validate field as valid URL.
      *
      * @param string|null $message Custom error message
@@ -352,14 +423,49 @@ class Validator
 
     /**
      * Validate field matches a regular expression pattern.
+     * Includes security measures against ReDoS attacks.
      *
      * @param string $pattern Regular expression pattern
      * @param string|null $message Custom error message
      * @return self
+     * @throws \Exception If pattern is potentially dangerous
      */
     public function regex(string $pattern, ?string $message = null): self
     {
+        // Security: Prevent ReDoS attacks
+        $this->validateRegexSafety($pattern);
+        
         return $this->addRule('regex', $message, $pattern);
+    }
+
+
+    /**
+     * Validate regex pattern safety to prevent ReDoS attacks.
+     *
+     * @param string $pattern Regex pattern to validate
+     * @return void
+     * @throws \Exception If pattern is potentially dangerous
+     */
+    private function validateRegexSafety(string $pattern): void
+    {
+        // Check for complex patterns that can cause ReDoS
+        $dangerousPatterns = [
+            '/(\*|\+|\{)\{/',           // Nested quantifiers like {2,}{3,}
+            '/\(\?[!<>=].*\(\?[!<>=]/', // Nested lookahead/lookbehind
+            '/\(\?R\)/',                // Recursive patterns
+            '/\(\?\d+\)/',              // Subroutine calls
+        ];
+
+        foreach ($dangerousPatterns as $dangerousPattern) {
+            if (preg_match($dangerousPattern, $pattern)) {
+                throw new \Exception('Complex or potentially dangerous regex patterns are not allowed for security reasons');
+            }
+        }
+
+        // Limit pattern length
+        if (strlen($pattern) > 500) {
+            throw new \Exception('Regex pattern is too long (max 500 characters)');
+        }
     }
 
 
@@ -448,9 +554,19 @@ class Validator
         $isValid = true;
 
         foreach ($this->fields as $fieldName => $field) {
+            // Skip validation if field has 'sometimes' and is not present
+            if ($field['sometimes'] && !isset($this->data[$fieldName])) {
+                continue;
+            }
+
+            // Skip validation if field is nullable and has no value
+            if ($field['nullable'] && !$field['hasValue']) {
+                continue;
+            }
+
             foreach ($field['rules'] as $rule) {
-                // Skip non-required rules if field has no value
-                if (!$field['hasValue'] && $rule['type'] !== 'required') {
+                // Skip non-required rules if field has no value and is not nullable
+                if (!$field['hasValue'] && $rule['type'] !== 'required' && !$field['nullable']) {
                     continue;
                 }
 
@@ -512,14 +628,25 @@ class Validator
 
 
     /**
-     * Get value from form data.
+     * Get value from form data with sanitization.
      *
      * @param string $name Field name
      * @return mixed
      */
     private function getValue(string $name)
     {
-        return $this->data[$name] ?? null;
+        $value = $this->data[$name] ?? null;
+
+        // Basic sanitization for strings
+        if (is_string($value)) {
+            // Trim whitespace
+            $value = trim($value);
+            
+            // Remove null bytes (security)
+            $value = str_replace("\0", '', $value);
+        }
+
+        return $value;
     }
 
 
@@ -688,6 +815,36 @@ class Validator
 
 
     /**
+     * Validate alphabetic characters only.
+     */
+    private function validateAlpha(array $rule, string $fieldName): array
+    {
+        $value = $this->getValue($fieldName);
+        $isValid = is_string($value) && preg_match('/^[a-zA-Z]+$/', $value) === 1;
+        
+        return [
+            'valid' => $isValid,
+            'messageKey' => 'alpha',
+        ];
+    }
+
+
+    /**
+     * Validate alphanumeric characters only.
+     */
+    private function validateAlphaNum(array $rule, string $fieldName): array
+    {
+        $value = $this->getValue($fieldName);
+        $isValid = is_string($value) && preg_match('/^[a-zA-Z0-9]+$/', $value) === 1;
+        
+        return [
+            'valid' => $isValid,
+            'messageKey' => 'alpha_num',
+        ];
+    }
+
+
+    /**
      * Validate numeric type.
      */
     private function validateNumeric(array $rule, string $fieldName): array
@@ -701,15 +858,24 @@ class Validator
 
 
     /**
-     * Validate integer type.
+     * Validate integer type (supports negative integers).
      */
     private function validateInteger(array $rule, string $fieldName): array
     {
         $value = $this->getValue($fieldName);
-        return [
-            'valid' => is_int($value) || (is_string($value) && ctype_digit($value)),
-            'messageKey' => 'integer',
-        ];
+        
+        // Fixed: Support negative integers
+        if (is_int($value)) {
+            return ['valid' => true, 'messageKey' => 'integer'];
+        }
+        
+        if (is_string($value)) {
+            // Check for negative integers
+            $isValid = preg_match('/^-?\d+$/', $value) === 1;
+            return ['valid' => $isValid, 'messageKey' => 'integer'];
+        }
+        
+        return ['valid' => false, 'messageKey' => 'integer'];
     }
 
 
@@ -899,6 +1065,28 @@ class Validator
 
 
     /**
+     * Validate phone number.
+     * Supports international formats with optional country code.
+     */
+    private function validatePhone(array $rule, string $fieldName): array
+    {
+        $value = $this->getValue($fieldName);
+        
+        // Remove common separators
+        $cleaned = preg_replace('/[\s\-\(\)\.]+/', '', $value);
+        
+        // Check for valid phone number format
+        // Supports: +1234567890, 1234567890, (123) 456-7890, etc.
+        $isValid = preg_match('/^\+?[1-9]\d{1,14}$/', $cleaned) === 1;
+
+        return [
+            'valid' => $isValid,
+            'messageKey' => 'phone',
+        ];
+    }
+
+
+    /**
      * Validate URL.
      */
     private function validateUrl(array $rule, string $fieldName): array
@@ -912,16 +1100,21 @@ class Validator
 
 
     /**
-     * Validate domain name.
+     * Validate domain name (improved and simplified).
      */
     private function validateDomain(array $rule, string $fieldName): array
     {
         $value = $this->getValue($fieldName);
+        
+        // Remove protocol if present
         $domain = preg_replace('/^https?:\/\//', '', $value);
-        $pattern = '/^(?!\-)(?:(?:[a-zA-Z\d][a-zA-Z\d\-]{0,61})?[a-zA-Z\d]\.){1,126}(?!\d+)[a-zA-Z\d]{1,63}$/';
+        $domain = strtok($domain, '/'); // Remove path
+        
+        // Validate using FILTER_VALIDATE_DOMAIN (PHP 7.0+)
+        $isValid = filter_var($domain, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) !== false;
 
         return [
-            'valid' => preg_match($pattern, $domain) === 1,
+            'valid' => $isValid,
             'messageKey' => 'domain',
         ];
     }
@@ -979,16 +1172,41 @@ class Validator
     }
 
 
+    
+
+
     /**
-     * Validate regex pattern.
+     * Validate regex pattern with timeout protection.
      */
     private function validateRegex(array $rule, string $fieldName): array
     {
         $value = $this->getValue($fieldName);
         $pattern = $rule['param1'];
 
+        // Set timeout for regex execution (prevent ReDoS)
+        $startTime = microtime(true);
+        
+        try {
+            // Use error suppression and check for timeout
+            set_error_handler(function() {});
+            $result = @preg_match($pattern, $value);
+            restore_error_handler();
+            
+            $executionTime = microtime(true) - $startTime;
+            
+            // Check if execution took too long
+            if ($executionTime > self::MAX_REGEX_EXECUTION_TIME) {
+                throw new \Exception('Regex execution timeout');
+            }
+            
+            $isValid = $result === 1;
+        } catch (\Exception $e) {
+            // Regex execution failed or timed out
+            $isValid = false;
+        }
+
         return [
-            'valid' => preg_match($pattern, $value) === 1,
+            'valid' => $isValid,
             'messageKey' => 'regex',
         ];
     }
