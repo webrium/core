@@ -479,6 +479,177 @@ class Url
     }
 
     /**
+     * Get referer URL (the page that linked to current page)
+     *
+     * @param string|null $default Default value if no referer exists
+     * @return string|null Referer URL or default
+     */
+    public static function referer(?string $default = null): ?string
+    {
+        return $_SERVER['HTTP_REFERER'] ?? $default;
+    }
+
+    /**
+     * Get referer domain (without scheme and path)
+     *
+     * @return string|null Referer domain or null if no referer
+     */
+    public static function refererDomain(): ?string
+    {
+        $referer = self::referer();
+        
+        if ($referer === null) {
+            return null;
+        }
+
+        $parsed = parse_url($referer);
+        return $parsed['host'] ?? null;
+    }
+
+    /**
+     * Check if referer matches given domain
+     *
+     * @param string $domain Domain to check against
+     * @return bool True if referer domain matches
+     */
+    public static function isRefererFrom(string $domain): bool
+    {
+        $refererDomain = self::refererDomain();
+        
+        if ($refererDomain === null) {
+            return false;
+        }
+
+        // Remove www. prefix for comparison
+        $refererDomain = preg_replace('/^www\./', '', $refererDomain);
+        $domain = preg_replace('/^www\./', '', $domain);
+
+        return $refererDomain === $domain;
+    }
+
+    /**
+     * Check if referer is from current domain (internal referer)
+     *
+     * @return bool True if referer is from same domain
+     */
+    public static function isInternalReferer(): bool
+    {
+        return self::isRefererFrom(self::domain());
+    }
+
+    /**
+     * Get origin header (for CORS requests)
+     *
+     * @param string|null $default Default value if no origin exists
+     * @return string|null Origin URL or default
+     */
+    public static function origin(?string $default = null): ?string
+    {
+        return $_SERVER['HTTP_ORIGIN'] ?? $default;
+    }
+
+    /**
+     * Get origin domain (without scheme and path)
+     *
+     * @return string|null Origin domain or null if no origin
+     */
+    public static function originDomain(): ?string
+    {
+        $origin = self::origin();
+        
+        if ($origin === null) {
+            return null;
+        }
+
+        $parsed = parse_url($origin);
+        return $parsed['host'] ?? null;
+    }
+
+    /**
+     * Check if origin matches given domain
+     *
+     * @param string $domain Domain to check against
+     * @return bool True if origin domain matches
+     */
+    public static function isOriginFrom(string $domain): bool
+    {
+        $originDomain = self::originDomain();
+        
+        if ($originDomain === null) {
+            return false;
+        }
+
+        // Remove www. prefix for comparison
+        $originDomain = preg_replace('/^www\./', '', $originDomain);
+        $domain = preg_replace('/^www\./', '', $domain);
+
+        return $originDomain === $domain;
+    }
+
+    /**
+     * Check if origin is from current domain
+     *
+     * @return bool True if origin is from same domain
+     */
+    public static function isSameOrigin(): bool
+    {
+        return self::isOriginFrom(self::domain());
+    }
+
+    /**
+     * Check if request is from allowed domain (checks both origin and referer)
+     *
+     * @param array $allowedDomains Array of allowed domains
+     * @return bool True if request is from allowed domain
+     */
+    public static function isFromAllowedDomain(array $allowedDomains): bool
+    {
+        $originDomain = self::originDomain();
+        $refererDomain = self::refererDomain();
+
+        foreach ($allowedDomains as $allowedDomain) {
+            // Remove www. prefix for comparison
+            $allowedDomain = preg_replace('/^www\./', '', $allowedDomain);
+
+            if ($originDomain !== null) {
+                $checkDomain = preg_replace('/^www\./', '', $originDomain);
+                if ($checkDomain === $allowedDomain) {
+                    return true;
+                }
+            }
+
+            if ($refererDomain !== null) {
+                $checkDomain = preg_replace('/^www\./', '', $refererDomain);
+                if ($checkDomain === $allowedDomain) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Get request source domain (tries origin first, then referer)
+     *
+     * @return string|null Source domain or null if neither exists
+     */
+    public static function sourceDomain(): ?string
+    {
+        return self::originDomain() ?? self::refererDomain();
+    }
+
+    /**
+     * Get request source URL (tries origin first, then referer)
+     *
+     * @return string|null Source URL or null if neither exists
+     */
+    public static function source(): ?string
+    {
+        return self::origin() ?? self::referer();
+    }
+
+    /**
      * Check if request is AJAX
      *
      * @return bool True if AJAX request
@@ -487,6 +658,28 @@ class Url
     {
         return !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
                strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+    }
+
+    /**
+     * Check if request is from mobile device (basic detection)
+     *
+     * @return bool True if mobile device
+     */
+    public static function isMobile(): bool
+    {
+        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+        
+        return preg_match('/Mobile|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i', $userAgent) === 1;
+    }
+
+    /**
+     * Get user agent string
+     *
+     * @return string User agent
+     */
+    public static function userAgent(): string
+    {
+        return $_SERVER['HTTP_USER_AGENT'] ?? '';
     }
 
     /**
