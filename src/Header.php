@@ -21,10 +21,10 @@ class Header
      * Default CORS configuration
      */
     private static array $corsDefaults = [
-        'origin' => '*',
-        'methods' => ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-        'headers' => ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-        'credentials' => true,
+        'allowed_origins' => [],
+        'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        'allowed_headers' => ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+        'allow_credentials' => false,
         'max_age' => 86400, // 24 hours
         'expose_headers' => [],
     ];
@@ -274,52 +274,99 @@ class Header
     }
 
 
-  
-
-
     /**
-     * Set CORS headers with customizable options.
+     * Set CORS headers (low-level method).
+     * 
+     * This is a low-level method for setting CORS headers. 
+     * For high-level CORS management, use App::corsMiddleware() instead.
      *
-     * @param array $options CORS configuration options
-     * @return void
+     * @param array $config CORS configuration with keys:
+     *                      - allowed_origins: array of allowed origin URLs
+     *                      - allowed_methods: array of allowed HTTP methods
+     *                      - allowed_headers: array of allowed headers
+     *                      - allow_credentials: bool
+     *                      - max_age: int (seconds)
+     *                      - expose_headers: array of exposed headers
+     * @return bool True if headers were set, false if origin not allowed
      */
-    public static function cors(array $options = []): void
+    public static function cors(array $config = []): bool
     {
-        $config = array_merge(self::$corsDefaults, $options);
+        $config = array_merge(self::$corsDefaults, $config);
+        $requestOrigin = Url::origin();
 
-        // Set origin
-        if (is_array($config['origin'])) {
-            $origin = self::get('Origin');
-            if ($origin && in_array($origin, $config['origin'])) {
-                self::set('Access-Control-Allow-Origin', $origin);
+        // If no origin header present, skip CORS headers
+        if ($requestOrigin === null) {
+            return true;
+        }
+
+        $requestOrigin = rtrim($requestOrigin, '/');
+        $allowedOrigin = null;
+
+        // Check if origin is allowed
+        if (in_array('*', $config['allowed_origins'])) {
+            // Wildcard - but cannot be used with credentials
+            if ($config['allow_credentials']) {
+                // Security: Cannot use wildcard with credentials
+                return false;
             }
+            $allowedOrigin = '*';
         } else {
-            self::set('Access-Control-Allow-Origin', $config['origin']);
+            // Check exact match or pattern
+            foreach ($config['allowed_origins'] as $allowed) {
+                $allowed = rtrim($allowed, '/');
+                
+                // Exact match
+                if ($allowed === $requestOrigin) {
+                    $allowedOrigin = $requestOrigin;
+                    break;
+                }
+                
+                // Pattern match (e.g., https://*.example.com)
+                if (strpos($allowed, '*') !== false) {
+                    $pattern = str_replace(['*', '.'], ['.*', '\.'], $allowed);
+                    if (preg_match('/^' . $pattern . '$/', $requestOrigin)) {
+                        $allowedOrigin = $requestOrigin;
+                        break;
+                    }
+                }
+            }
         }
 
-        // Set allowed methods
-        if (!empty($config['methods'])) {
-            $methods = is_array($config['methods']) ? implode(', ', $config['methods']) : $config['methods'];
-            self::set('Access-Control-Allow-Methods', $methods);
+        // If origin not allowed, don't set CORS headers
+        if ($allowedOrigin === null) {
+            return false;
         }
 
-        // Set allowed headers
-        if (!empty($config['headers'])) {
-            $headers = is_array($config['headers']) ? implode(', ', $config['headers']) : $config['headers'];
-            self::set('Access-Control-Allow-Headers', $headers);
-        }
+        // Set Access-Control-Allow-Origin
+        self::set('Access-Control-Allow-Origin', $allowedOrigin);
 
-        // Set credentials
-        if ($config['credentials']) {
+        // Set Access-Control-Allow-Credentials
+        if ($config['allow_credentials']) {
             self::set('Access-Control-Allow-Credentials', 'true');
         }
 
-        // Set max age
+        // Set Access-Control-Allow-Methods
+        if (!empty($config['allowed_methods'])) {
+            $methods = is_array($config['allowed_methods']) 
+                ? implode(', ', $config['allowed_methods']) 
+                : $config['allowed_methods'];
+            self::set('Access-Control-Allow-Methods', $methods);
+        }
+
+        // Set Access-Control-Allow-Headers
+        if (!empty($config['allowed_headers'])) {
+            $headers = is_array($config['allowed_headers']) 
+                ? implode(', ', $config['allowed_headers']) 
+                : $config['allowed_headers'];
+            self::set('Access-Control-Allow-Headers', $headers);
+        }
+
+        // Set Access-Control-Max-Age
         if ($config['max_age']) {
             self::set('Access-Control-Max-Age', (string)$config['max_age']);
         }
 
-        // Set expose headers
+        // Set Access-Control-Expose-Headers
         if (!empty($config['expose_headers'])) {
             $exposeHeaders = is_array($config['expose_headers']) 
                 ? implode(', ', $config['expose_headers']) 
@@ -327,10 +374,26 @@ class Header
             self::set('Access-Control-Expose-Headers', $exposeHeaders);
         }
 
-        // Handle preflight requests
+        return true;
+    }
+
+
+    /**
+     * Handle CORS preflight request (OPTIONS).
+     * 
+     * @param array $config CORS configuration
+     * @param bool $terminate Whether to terminate after handling preflight
+     * @return void
+     */
+    public static function handlePreflight(array $config = [], bool $terminate = true): void
+    {
         if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-            http_response_code(204);
-            exit();
+            self::cors($config);
+            
+            if ($terminate) {
+                http_response_code(204);
+                exit;
+            }
         }
     }
 
