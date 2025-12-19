@@ -3,13 +3,14 @@
 namespace Webrium;
 
 use Webrium\Url;
+use Webrium\Header;
 use Webrium\Debug;
 use Webrium\File;
 use Webrium\Directory;
 
 /**
  * Application class that provides core functionality for the Webrium framework
- * Handles autoloading, environment configuration, request processing, and localization
+ * Handles autoloading, environment configuration, request processing, localization, and CORS
  */
 class App
 {
@@ -40,6 +41,27 @@ class App
      * @var array
      */
     private static $langStore = [];
+
+    /**
+     * CORS configuration
+     *
+     * @var array
+     */
+    private static $corsConfig = [
+        'allowed_origins' => [],
+        'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        'allowed_headers' => ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+        'allow_credentials' => false,
+        'max_age' => 86400,
+        'expose_headers' => [],
+    ];
+
+    /**
+     * Whether CORS has been initialized
+     *
+     * @var bool
+     */
+    private static $corsEnabled = false;
 
     /**
      * Initialize the application with the given root directory
@@ -365,6 +387,238 @@ class App
         return $translation;
     }
 
+    /**
+     * Configure CORS settings.
+     * 
+     * This method allows you to customize CORS configuration beyond just origins.
+     *
+     * @param array $config CORS configuration with keys:
+     *                      - allowed_origins: array of allowed origins
+     *                      - allowed_methods: array of HTTP methods
+     *                      - allowed_headers: array of allowed headers
+     *                      - allow_credentials: bool
+     *                      - max_age: int (seconds)
+     *                      - expose_headers: array of exposed headers
+     * @return void
+     */
+    public static function configureCors(array $config): void
+    {
+        self::$corsConfig = array_merge(self::$corsConfig, $config);
+        
+        // Validate configuration
+        if (self::$corsConfig['allow_credentials'] && in_array('*', self::$corsConfig['allowed_origins'])) {
+            Debug::triggerError('CORS: Cannot use wildcard (*) origin with credentials enabled. This is a security violation.');
+        }
+    }
+
+    /**
+     * Set allowed origins for CORS.
+     *
+     * @param array|string $origins Single origin or array of allowed origins
+     * @return void
+     */
+    public static function setCorsOrigins($origins): void
+    {
+        if (is_string($origins)) {
+            $origins = [$origins];
+        }
+
+        // Normalize origins (remove trailing slashes)
+        self::$corsConfig['allowed_origins'] = array_map(function($origin) {
+            return rtrim($origin, '/');
+        }, $origins);
+
+        // Validate configuration
+        if (self::$corsConfig['allow_credentials'] && in_array('*', self::$corsConfig['allowed_origins'])) {
+            Debug::triggerError('CORS: Cannot use wildcard (*) origin with credentials enabled. Set allow_credentials to false.');
+        }
+    }
+
+    /**
+     * Add origin(s) to existing CORS configuration.
+     *
+     * @param array|string $origins Single origin or array of origins to add
+     * @return void
+     */
+    public static function addCorsOrigin($origins): void
+    {
+        if (is_string($origins)) {
+            $origins = [$origins];
+        }
+
+        foreach ($origins as $origin) {
+            $origin = rtrim($origin, '/');
+            if (!in_array($origin, self::$corsConfig['allowed_origins'])) {
+                self::$corsConfig['allowed_origins'][] = $origin;
+            }
+        }
+    }
+
+    /**
+     * Check if origin is allowed.
+     *
+     * @param string|null $origin Origin to check (null to use current request origin)
+     * @return bool True if origin is allowed
+     */
+    public static function isOriginAllowed(?string $origin = null): bool
+    {
+        if ($origin === null) {
+            $origin = Url::origin();
+        }
+
+        if ($origin === null) {
+            return false;
+        }
+
+        $origin = rtrim($origin, '/');
+
+        // Check if wildcard is set
+        if (in_array('*', self::$corsConfig['allowed_origins'])) {
+            return true;
+        }
+
+        // Check exact match or pattern
+        foreach (self::$corsConfig['allowed_origins'] as $allowed) {
+            $allowed = rtrim($allowed, '/');
+            
+            // Exact match
+            if ($allowed === $origin) {
+                return true;
+            }
+            
+            // Pattern match (e.g., https://*.example.com)
+            if (strpos($allowed, '*') !== false) {
+                $pattern = str_replace(['*', '.'], ['.*', '\.'], $allowed);
+                if (preg_match('/^' . $pattern . '$/', $origin)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Get allowed origins list.
+     *
+     * @return array List of allowed origins
+     */
+    public static function getAllowedOrigins(): array
+    {
+        return self::$corsConfig['allowed_origins'];
+    }
+
+    /**
+     * Get current CORS configuration.
+     *
+     * @return array Current CORS configuration
+     */
+    public static function getCorsConfig(): array
+    {
+        return self::$corsConfig;
+    }
+
+    /**
+     * Check if CORS is enabled.
+     *
+     * @return bool True if CORS has been enabled
+     */
+    public static function isCorsEnabled(): bool
+    {
+        return self::$corsEnabled;
+    }
+
+    /**
+     * Enable CORS with specified origins and configuration.
+     * 
+     * This is the recommended method for enabling CORS in your application.
+     *
+     * @param array|string|null $origins Allowed origins (null to allow current domain only)
+     * @param array $config Additional CORS configuration
+     * @return void
+     */
+    public static function enableCors($origins = null, array $config = []): void
+    {
+        // Set default origin if none provided
+        if ($origins === null) {
+            $origins = [Url::home()];
+        }
+
+        // Set origins
+        self::setCorsOrigins($origins);
+
+        // Apply additional configuration
+        if (!empty($config)) {
+            self::configureCors($config);
+        }
+
+        // Set CORS headers
+        $corsSet = Header::cors(self::$corsConfig);
+
+        // Handle preflight requests
+        if (Url::method() === 'OPTIONS') {
+            if ($corsSet) {
+                http_response_code(204);
+                exit;
+            } else {
+                // Origin not allowed
+                http_response_code(403);
+                Header::json();
+                echo json_encode(['error' => 'CORS policy: Origin not allowed']);
+                exit;
+            }
+        }
+
+        self::$corsEnabled = true;
+    }
+
+    /**
+     * CORS middleware for protecting all requests.
+     * 
+     * This method should be called early in your application bootstrap.
+     * It will validate the origin and reject requests from unauthorized domains.
+     *
+     * @param array|string $origins Allowed origins
+     * @param array $config Additional CORS configuration
+     * @param int $errorCode HTTP status code for unauthorized requests (default: 403)
+     * @return void
+     */
+    public static function corsMiddleware($origins, array $config = [], int $errorCode = 403): void
+    {
+        // Set origins
+        self::setCorsOrigins($origins);
+
+        // Apply additional configuration
+        if (!empty($config)) {
+            self::configureCors($config);
+        }
+
+        // Get request origin
+        $requestOrigin = Url::origin();
+
+        // If there's an origin header, validate it
+        if ($requestOrigin !== null && !self::isOriginAllowed($requestOrigin)) {
+            http_response_code($errorCode);
+            Header::json();
+            echo json_encode([
+                'error' => 'CORS policy: Origin not allowed',
+                'origin' => $requestOrigin,
+                'allowed_origins' => self::$corsConfig['allowed_origins']
+            ]);
+            exit;
+        }
+
+        // Set CORS headers
+        $corsSet = Header::cors(self::$corsConfig);
+
+        // Handle preflight requests
+        if (Url::method() === 'OPTIONS') {
+            http_response_code(204);
+            exit;
+        }
+
+        self::$corsEnabled = true;
+    }
 
     /**
      * Initialize the debugging system and execute the application's routing logic.
