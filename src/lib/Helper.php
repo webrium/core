@@ -64,7 +64,7 @@ function message($justGetText=false)
 }
 
 
-function input($name=false,$default=null)
+function input($name=null, $default=null )
 {
   return App::input($name,$default);
 }
