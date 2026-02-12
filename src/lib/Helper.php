@@ -8,7 +8,7 @@ use Webrium\Vite;
 use Zog\Zog;
 
 
-function url($str='')
+function url($str = '')
 {
   return Url::get($str);
 }
@@ -20,9 +20,14 @@ function current_url()
 }
 
 
-function view($name,$params=[])
+function view($name, $params = [])
 {
   return Zog::render($name, $params);
+}
+
+function layout($layoutView, $view, $data = [])
+{
+  return Zog::renderLayout($layoutView, $view, $data);
 }
 
 function loadview($name)
@@ -33,24 +38,26 @@ function loadview($name)
 
 function redirect($url, $statusCode = 303)
 {
-   header('Location: ' . $url, true, $statusCode);
-   return new \Webrium\RequestBack;
+  header('Location: ' . $url, true, $statusCode);
+  return new \Webrium\RequestBack;
 }
 
 
-function back(){
+function back()
+{
   header('Location: ' . $_SERVER['HTTP_REFERER']);
   return new \Webrium\RequestBack;
 }
 
 
-function errors($name=false)
+function errors($name = false)
 {
   return \Webrium\RequestBack::getError($name);
 }
 
 
-function old($name,$default=''){
+function old($name, $default = '')
+{
   $old = \Webrium\RequestBack::getOldParamsValues();
   if (isset($old[$name])) {
     return $old[$name];
@@ -58,52 +65,55 @@ function old($name,$default=''){
   return $default;
 }
 
-function message($justGetText=false)
+function message($justGetText = false)
 {
   return \Webrium\RequestBack::getMessage($justGetText);
 }
 
 
-function input($name=null, $default=null )
+function input($name = null, $default = null)
 {
-  return App::input($name,$default);
+  return App::input($name, $default);
 }
 
-function public_path($path='')
+function public_path($path = '')
 {
-  return Directory::path('public')."/$path";
+  return Directory::path('public') . "/$path";
 }
 
 
-function app_path($path='')
+function app_path($path = '')
 {
-  return Directory::path('app')."/$path";
+  return Directory::path('app') . "/$path";
 }
 
 
-function storage_path($path='')
+function storage_path($path = '')
 {
-  return Directory::path('storage_app')."/$path";
+  return Directory::path('storage_app') . "/$path";
 }
 
 
-function root_path($path='')
+function root_path($path = '')
 {
-  return App::rootPath()."/$path";
+  return App::getRootPath() . "/$path";
 }
 
 
-function lang($name){
-  return App::lang($name);
+function lang($key, $replacements = [])
+{
+  return App::trans($key, $replacements);
 }
 
 
-function env($name, $default = false){
+function env($name, $default = false)
+{
   return App::env($name, $default);
 }
 
 
-function route($name, $params){
+function route($name, $params)
+{
   return Route::route($name, $params);
 }
 
@@ -114,5 +124,5 @@ function route($name, $params){
  */
 function vite_assets(): string
 {
-    return Vite::getInstance()->assets();
+  return Vite::getInstance()->assets();
 }
