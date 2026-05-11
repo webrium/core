@@ -22,31 +22,24 @@ composer require webrium/core
 index.php
 ```PHP
 <?php
-
-// Load Composer autoloader
 require_once __DIR__ . '/../vendor/autoload.php';
 
-// Import required classes
 use Webrium\App;
 use Webrium\Debug;
 use Webrium\Route;
 
-// Enable error display for debugging
 Debug::enableErrorDisplay(true);
-
-// Disable error logging to file
 Debug::enableErrorLogging(false);
+Debug::initialize();
 
 // Set application root path
-App::setRootPath(__DIR__);
+App::initialize(__DIR__);
 
-// Define home route
-Route::get('/', function () {
-    return ['message' => 'Hello World'];
+Route::get('/', function(){
+    return 'Hello';
 });
 
-// Start routing
-Route::run();
+App::run();
 ```
 
 ## 3) Create the `.htaccess` file in app
