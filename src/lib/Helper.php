@@ -1,11 +1,10 @@
 <?php
 use Webrium\App;
 use Webrium\Url;
-use Webrium\View;
+use Webrium\View\Engine;
 use Webrium\Directory;
 use Webrium\Route;
 use Webrium\Vite;
-use Zog\Zog;
 
 
 function url($str = '')
@@ -22,18 +21,18 @@ function current_url()
 
 function view($name, $params = [])
 {
-  return Zog::render($name, $params);
+  return Engine::render($name, $params);
 }
 
 function layout($layoutView, $view, $data = [])
 {
-  return Zog::renderLayout($layoutView, $view, $data);
+  return Engine::renderLayout($layoutView, $view, $data);
 }
 
-function loadview($name)
-{
-  return View::loadview($name);
-}
+// function loadview($name)
+// {
+//   return View::loadview($name);
+// }
 
 
 function redirect($url, $statusCode = 303)
