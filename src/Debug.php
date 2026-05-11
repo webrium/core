@@ -1,7 +1,7 @@
 <?php
+
 namespace Webrium;
 
-use Webrium\View;
 use Webrium\Event;
 use Webrium\Directory;
 use Throwable;
@@ -14,7 +14,32 @@ use ErrorException;
  */
 class Debug
 {
-    private static $errorView = false;
+    /**
+     * Optional callable for rendering the error page.
+     * Signature: function(array $data): string
+     *
+     * Register from outside (e.g. bootstrap) to plug in any view renderer:
+     *
+     *   Debug::setErrorRenderer(function(array $data): string {
+     *       return \Webrium\View\Engine::render('errors/debug', $data);
+     *   });
+     *
+     * The $data array contains:
+     *   - error_message   (string)
+     *   - error_line      (int|false)
+     *   - error_file      (string)
+     *   - error_backtrace (string)
+     *   - error_type      (string)
+     *   - status_code     (int)
+     */
+    private static $errorRenderer = null;
+
+    /**
+     * Map of compiled filename → original view name.
+     * Populated by the new View engine when a template is compiled.
+     * Replaces View::getOrginalNameByHash() from the old View system.
+     */
+    private static array $compiledFileMap = [];
     private static $writeErrors = true;
     private static $showErrors = true;
     private static $logPath = false;
@@ -28,6 +53,26 @@ class Debug
     private static $forceJsonResponse = false; // Force JSON for API responses
 
     /**
+     * Register a compiled template file → original view name mapping.
+     * Called by the View engine after compiling a template.
+     * Replaces the old View::getOrginalNameByHash() approach.
+     */
+    public static function registerCompiledFile(string $compiledPath, string $originalName): void
+    {
+        self::$compiledFileMap[basename($compiledPath)] = $originalName;
+    }
+
+    /**
+     * Resolve a file path: if it's a compiled template file, return the original view name.
+     * Falls back to the original path if no mapping exists.
+     */
+    private static function resolveFilePath(string $filePath): string
+    {
+        $basename = basename($filePath);
+        return self::$compiledFileMap[$basename] ?? $filePath;
+    }
+
+    /**
      * Initialize comprehensive error handling
      */
     public static function initialize(): void
@@ -38,12 +83,12 @@ class Debug
 
         self::$isInitialized = true;
         self::displayErrors(self::$showErrors);
-        
+
         // Register all error handlers
         self::registerErrorHandler();
         self::registerExceptionHandler();
         register_shutdown_function([self::class, 'handleShutdown']);
-        
+
         // For PHP 8.0+, configure assertions
         // Note: zend.assertions can only be set in php.ini
         if (self::$showErrors) {
@@ -65,15 +110,11 @@ class Debug
 
             // Convert error to exception for better handling
             $errorType = self::getErrorTypeName($errno);
-            
-            try {
-                $errfile = View::getOrginalNameByHash($errfile);
-            } catch (Throwable $e) {
-                // If View class fails, use original file
-            }
+
+            $errfile = self::resolveFilePath($errfile);
 
             self::triggerError($errstr, $errfile, $errline, 500, false, $errorType);
-            
+
             // Don't execute PHP internal error handler
             return true;
         }, E_ALL);
@@ -85,18 +126,20 @@ class Debug
     private static function registerExceptionHandler(): void
     {
         set_exception_handler(function (Throwable $exception) {
-            $file = $exception->getFile();
-            
-            try {
-                $file = View::getOrginalNameByHash($file);
-            } catch (Throwable $e) {
-                // Use original file if View fails
+            // Duck-typing: if the exception carries an original view path
+            // (e.g. ViewException from webrium/view), use it directly.
+            // No import of the View library needed — full decoupling.
+            if (method_exists($exception, 'getOriginalView') && $exception->getOriginalView() !== '') {
+                $file = $exception->getOriginalView();
+                $line = $exception->getPrevious()?->getLine() ?? $exception->getLine();
+            } else {
+                $file = self::resolveFilePath($exception->getFile());
+                $line = $exception->getLine();
             }
-
             self::triggerError(
                 $exception->getMessage(),
                 $file,
-                $exception->getLine(),
+                $line,
                 500,
                 true,
                 get_class($exception)
@@ -136,22 +179,18 @@ class Debug
     public static function handleShutdown(): void
     {
         $error = error_get_last();
-        
+
         if ($error && in_array($error['type'], [
-            E_ERROR, 
-            E_PARSE, 
-            E_CORE_ERROR, 
-            E_COMPILE_ERROR, 
+            E_ERROR,
+            E_PARSE,
+            E_CORE_ERROR,
+            E_COMPILE_ERROR,
             E_USER_ERROR,
             E_RECOVERABLE_ERROR
         ])) {
             $errorFile = $error['file'];
-            
-            try {
-                $errorFile = View::getOrginalNameByHash($errorFile);
-            } catch (Throwable $e) {
-                // Use original file if View fails
-            }
+
+            $errorFile = self::resolveFilePath($errorFile);
 
             $errorType = self::getErrorTypeName($error['type']);
             self::triggerError($error['message'], $errorFile, $error['line'], 500, true, $errorType);
@@ -162,10 +201,10 @@ class Debug
      * Create and handle an error
      */
     public static function triggerError(
-        string $message, 
-        $file = false, 
-        $line = false, 
-        int $statusCode = 500, 
+        string $message,
+        $file = false,
+        $line = false,
+        int $statusCode = 500,
         bool $isFatal = false,
         string $errorType = 'Error'
     ): void {
@@ -262,8 +301,10 @@ class Debug
         }
 
         // Check if request is AJAX
-        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && 
-            strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+        if (
+            !empty($_SERVER['HTTP_X_REQUESTED_WITH']) &&
+            strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest'
+        ) {
             return true;
         }
 
@@ -273,18 +314,9 @@ class Debug
             return true;
         }
 
-        // Check if POST/PUT/PATCH/DELETE request (likely API)
-        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-        if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'])) {
-            // Additional check: if not multipart form (file upload), likely API
-            if (stripos($contentType, 'multipart/form-data') === false &&
-                stripos($contentType, 'application/x-www-form-urlencoded') === false) {
-                return true;
-            }
-        }
-
         return false;
     }
+
     private static function showProductionError(): void
     {
         if (PHP_SAPI === 'cli') {
@@ -331,9 +363,9 @@ class Debug
      * Display error to user
      */
     private static function displayError(
-        string $message, 
-        string $backtrace, 
-        $line = false, 
+        string $message,
+        string $backtrace,
+        $line = false,
         int $statusCode = 500,
         string $errorType = 'Error'
     ): void {
@@ -347,12 +379,12 @@ class Debug
                 $output .= "\033[0;33mFile: " . self::$errorFile . ":{$line}\033[0m\n";
             }
             $output .= "\033[1;31m" . str_repeat("=", 70) . "\033[0m\n";
-            
+
             if ($backtrace) {
                 $cleanBacktrace = strip_tags($backtrace);
                 $output .= "\nStack trace:\n{$cleanBacktrace}\n";
             }
-            
+
             echo $output;
             return;
         }
@@ -363,40 +395,49 @@ class Debug
             return;
         }
 
-        // Web HTML output
+        // Build the default inline HTML output (used as fallback)
         $displayMessage = "<div style='background:#f8d7da;border:1px solid #f5c6cb;border-radius:4px;padding:15px;margin:20px;'>";
         $displayMessage .= "<h2 style='color:#721c24;margin:0 0 10px 0;'>{$errorType}</h2>";
         $displayMessage .= "<p style='color:#721c24;margin:0;'><strong>{$message}</strong></p>";
-        
+
         if ($line && self::$errorFile) {
             $displayMessage .= "<p style='color:#856404;margin:10px 0 0 0;'><small>" . basename(self::$errorFile) . ":{$line}</small></p>";
         }
-        
+
         if ($backtrace) {
             $displayMessage .= "<details style='margin-top:15px;'><summary style='cursor:pointer;color:#004085;'>Stack trace</summary>";
             $displayMessage .= "<div style='background:#fff;padding:10px;margin-top:10px;border-radius:4px;font-family:monospace;font-size:12px;'>{$backtrace}</div>";
             $displayMessage .= "</details>";
         }
-        
+
         $displayMessage .= "</div>";
 
         self::$htmlOutput = $displayMessage;
 
-        // Use custom error view if set
-        if (self::$errorView && class_exists(View::class)) {
+        // Use custom error renderer if registered
+        if (self::$errorRenderer !== null) {
             try {
-                $view = new View(self::$errorView, [
-                    'error_message' => $message,
-                    'error_line' => $line,
-                    'error_file' => self::$errorFile,
+                while (ob_get_level() > 0) {
+                    ob_end_clean();
+                }
+                header('Content-Type: text/html; charset=utf-8');
+                echo (self::$errorRenderer)([
+                    'error_message'   => $message,
+                    'error_line'      => $line,
+                    'error_file'      => self::$errorFile,
                     'error_backtrace' => $backtrace,
-                    'error_type' => $errorType,
-                    'status_code' => $statusCode
+                    'error_type'      => $errorType,
+                    'status_code'     => $statusCode,
                 ]);
-                $view->render();
                 return;
-            } catch (Throwable $e) {
-                // Fall back to default display
+            } catch (Throwable $rendererException) {
+                // Renderer failed — fall through to default inline HTML
+                error_log(
+                    'Debug::errorRenderer failed: ' .
+                        $rendererException->getMessage() .
+                        ' in ' . $rendererException->getFile() .
+                        ':' . $rendererException->getLine()
+                );
             }
         }
 
@@ -404,7 +445,7 @@ class Debug
         while (ob_get_level() > 0) {
             ob_end_clean();
         }
-        
+
         header('Content-Type: text/html; charset=utf-8');
         echo self::$htmlOutput;
     }
@@ -437,11 +478,11 @@ class Debug
             $errorData['debug'] = [
                 'file' => self::$errorFile,
                 'line' => $line,
-                'trace' => array_filter(array_map(function($frame) {
+                'trace' => array_filter(array_map(function ($frame) {
                     if (!isset($frame['file'])) {
                         return null;
                     }
-                    
+
                     // Skip Webrium core files
                     if (strpos($frame['file'], DIRECTORY_SEPARATOR . 'webrium' . DIRECTORY_SEPARATOR . 'core' . DIRECTORY_SEPARATOR . 'src') !== false) {
                         return null;
@@ -463,9 +504,9 @@ class Debug
      * Log error to file
      */
     private static function logError(
-        string $message, 
-        string $backtrace, 
-        $line = false, 
+        string $message,
+        string $backtrace,
+        $line = false,
         int $statusCode = 500,
         string $errorType = 'Error'
     ): void {
@@ -477,15 +518,15 @@ class Debug
             $logMessage = "\n" . str_repeat("=", 80);
             $logMessage .= "\n[{$date} {$time}] [{$statusCode}] {$errorType}";
             $logMessage .= "\nMessage: {$message}";
-            
+
             if ($line) {
                 $logMessage .= "\nLine: {$line}";
             }
-            
+
             if ($backtrace) {
                 $logMessage .= "\n\nStack trace:\n{$backtrace}";
             }
-            
+
             $logMessage .= "\n" . str_repeat("=", 80) . "\n";
 
             $logPath = self::getLogPath();
@@ -502,14 +543,14 @@ class Debug
     private static function getFormattedBacktraceForLogging($initialFile): string
     {
         $trace = [];
-        
+
         if ($initialFile !== false) {
             $trace[] = "  → {$initialFile}";
         }
 
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
         $count = 1;
-        
+
         foreach ($backtrace as $frame) {
             if (!isset($frame['file'])) {
                 continue;
@@ -544,14 +585,14 @@ class Debug
     private static function getFormattedBacktraceForDisplay($initialFile): string
     {
         $trace = [];
-        
+
         if ($initialFile !== false) {
             $trace[] = "<span style='color:#d32f2f;font-weight:bold;'>→ {$initialFile}</span>";
         }
 
         $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
         $count = 1;
-        
+
         foreach ($backtrace as $frame) {
             if (!isset($frame['file'])) {
                 continue;
@@ -565,7 +606,7 @@ class Debug
             $file = $frame['file'];
             $line = $frame['line'] ?? 0;
             $isVendor = strpos($file, DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR) !== false;
-            
+
             $function = '';
             if (isset($frame['class'])) {
                 $function = " <span style='color:#666;'>→ {$frame['class']}{$frame['type']}{$frame['function']}()</span>";
@@ -587,15 +628,15 @@ class Debug
     private static function getLogPath(): string
     {
         if (!self::$logPath) {
-            self::$logPath = class_exists(Directory::class) 
+            self::$logPath = class_exists(Directory::class)
                 ? Directory::path('logs')
                 : __DIR__ . '/../../logs';
-            
+
             if (!file_exists(self::$logPath)) {
                 mkdir(self::$logPath, 0755, true);
             }
         }
-        
+
         return self::$logPath;
     }
 
@@ -629,23 +670,64 @@ class Debug
     }
 
     // Getter methods
-    public static function hasError(): bool { return self::$hasError; }
-    public static function getHtmlOutput(): string { return self::$htmlOutput; }
-    public static function getErrorString(): string { return self::$errorString; }
-    public static function getErrorLine(): int { return self::$errorLine; }
-    public static function getErrorFile(): string { return self::$errorFile; }
-    public static function isDisplayingErrors(): bool { return self::$showErrors; }
+    public static function hasError(): bool
+    {
+        return self::$hasError;
+    }
+    public static function getHtmlOutput(): string
+    {
+        return self::$htmlOutput;
+    }
+    public static function getErrorString(): string
+    {
+        return self::$errorString;
+    }
+    public static function getErrorLine(): int
+    {
+        return self::$errorLine;
+    }
+    public static function getErrorFile(): string
+    {
+        return self::$errorFile;
+    }
+    public static function isDisplayingErrors(): bool
+    {
+        return self::$showErrors;
+    }
 
     // Configuration methods
-    public static function enableErrorLogging(bool $status): void { self::$writeErrors = $status; }
-    public static function enableErrorDisplay(bool $status): void { self::displayErrors($status); }
-    public static function setErrorView(string $viewPath): void { self::$errorView = $viewPath; }
-    public static function setLogPath(string $path): void 
-    { 
+    public static function enableErrorLogging(bool $status): void
+    {
+        self::$writeErrors = $status;
+    }
+    public static function enableErrorDisplay(bool $status): void
+    {
+        self::displayErrors($status);
+    }
+    public static function setLogPath(string $path): void
+    {
         self::$logPath = $path;
         if (!file_exists($path)) {
             mkdir($path, 0755, true);
         }
+    }
+
+    /**
+     * Register a custom renderer for the error page.
+     *
+     * The callable receives one array argument with these keys:
+     *   error_message, error_line, error_file, error_backtrace, error_type, status_code
+     * It must return an HTML string.
+     *
+     * Example — plug in webrium/view from your bootstrap:
+     *
+     *   Debug::setErrorRenderer(function(array $data): string {
+     *       return \Webrium\View\Engine::render('errors/debug', $data);
+     *   });
+     */
+    public static function setErrorRenderer(callable $renderer): void
+    {
+        self::$errorRenderer = $renderer;
     }
 
     /**
