@@ -1,4 +1,3 @@
-
 <div align="center">
   <img src="https://repository-images.githubusercontent.com/265541994/1532aafa-589a-40fc-914b-ee9b8c9ab13f" alt="Webrium Core Cover" />
 
@@ -26,19 +25,22 @@ Explore the full power of Webrium Core through our detailed guides:
 
 #### 🚀 Core Essentials
 *   **[App Initialization](https://github.com/webrium/core/wiki/App)**: Learn about the application structure and boot process.
-*   **[Routing System](https://github.com/webrium/core/wiki/route)**: Define and manage clean, RESTful routes easily.
+*   **[Routing System](https://github.com/webrium/core/wiki/Route)**: Define and manage clean, RESTful routes easily.
+*   **[Helper Functions](https://github.com/webrium/core/wiki/Helpers)**: Global shortcuts for URLs, redirects, input, paths, and more.
 
 #### 🌐 Request & Response
 *   **[URL Helpers](https://github.com/webrium/core/wiki/Url)**: Manage and generate dynamic URLs effortlessly.
 *   **[Header Management](https://github.com/webrium/core/wiki/Header)**: Control HTTP headers and responses.
-*   **[HTTP Client](https://github.com/webrium/core/wiki/http-client)**: Perform outgoing requests with a simple interface.
+*   **[HTTP Client](https://github.com/webrium/core/wiki/HttpClient)**: Perform outgoing requests with a simple, fluent interface.
 
 #### 🛡️ Security & Validation
 *   **[Data Validator](https://github.com/webrium/core/wiki/From-Validator)**: Robust tools for validating user input and forms.
 *   **[JWT Integration](https://github.com/webrium/core/wiki/JWT-Documentation)**: Secure your APIs with JSON Web Tokens.
-*   **[Hash Utilities](https://github.com/webrium/core/wiki/Hash-Class-Documentation)**: Secure hashing for sensitive information.
+*   **[Hash Utilities](https://github.com/webrium/core/wiki/Hash)**: Secure password hashing, HMAC, tokens, and more.
 
-#### 🛠️ Files & Utilities
+#### 🛠️ Files, Storage & Utilities
+*   **[File Manager](https://github.com/webrium/core/wiki/File)**: Read, write, stream, download, and manage files and directories.
+*   **[Session Manager](https://github.com/webrium/core/wiki/Session)**: Store and retrieve session data, flash messages, and counters.
 *   **[File Upload](https://github.com/webrium/core/wiki/Upload)**: A streamlined way to handle file uploads safely.
 
 ---
@@ -49,7 +51,6 @@ Explore the full power of Webrium Core through our detailed guides:
 Get started via Composer:
 ```bash
 composer require webrium/core
-
 ```
 
 ### 2. Basic Setup (index.php)
@@ -72,5 +73,4 @@ Route::get('/', function() {
 });
 
 App::run();
-
 ```
