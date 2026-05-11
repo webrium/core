@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="YOUR_LOGO_URL_HERE" alt="Webrium Core Logo" width="120" />
+  <img src="https://repository-images.githubusercontent.com/265541994/1532aafa-589a-40fc-914b-ee9b8c9ab13f" alt="Webrium Core Cover"  />
 
   # Webrium Core
   ### The Lightweight Engine for Modern PHP Applications
