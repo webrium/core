@@ -125,24 +125,49 @@ class Debug
      */
     private static function registerExceptionHandler(): void
     {
+
+
+
         set_exception_handler(function (Throwable $exception) {
-            // Duck-typing: if the exception carries an original view path
-            // (e.g. ViewException from webrium/view), use it directly.
-            // No import of the View library needed — full decoupling.
-            if (method_exists($exception, 'getOriginalView') && $exception->getOriginalView() !== '') {
-                $file = $exception->getOriginalView();
-                $line = $exception->getPrevious()?->getLine() ?? $exception->getLine();
-            } else {
+
+            $message = $exception->getMessage();
+
+            $target = $exception;
+            do {
+                if (method_exists($target, 'getOriginalView') && $target->getOriginalView() !== '') {
+                    $file = $target->getOriginalView();
+                    $prev = $target->getPrevious();
+                    $line = $prev ? $prev->getLine() : $target->getLine();
+                    break;
+                }
+                $target = $target->getPrevious();
+            } while ($target !== null);
+
+            if (!isset($file)) {
                 $file = self::resolveFilePath($exception->getFile());
                 $line = $exception->getLine();
             }
+
+            $line = $line ?? $exception->getLine();
+
+
+            $parts = explode(': ', $message);
+            $cleanMessage = end($parts);
+
+            $errorTypeMap = [
+                'Webrium\View\ViewException'         => 'View Error',
+                'Webrium\View\ViewTemplateException' => 'Template Error',
+                'ErrorException'                     => 'PHP Error',
+            ];
+            $errorType = $errorTypeMap[get_class($exception)] ?? get_class($exception);
+
             self::triggerError(
-                $exception->getMessage(),
+                $cleanMessage,
                 $file,
                 $line,
                 500,
                 true,
-                get_class($exception)
+                $errorType
             );
         });
     }
