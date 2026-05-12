@@ -16,14 +16,15 @@ class Route
     private static $middlewareIndex = -1;
 
     /**
-     * Load route files from the routes directory
+     * Load route files from a route path
      *
      * @param array $fileNames Array of route file names to load
+     * @param string $routePath Path to the route files directory
      * @return void
      */
-    public static function source(array $fileNames)
+    public static function source(array $fileNames, string $routePath = 'routes')
     {
-        $path = Directory::path('routes');
+        $path = Directory::path($routePath);
 
         foreach ($fileNames as $fileName) {
             $result = File::runOnce("$path/$fileName");
