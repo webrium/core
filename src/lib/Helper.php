@@ -4,6 +4,7 @@ use Webrium\Url;
 use Webrium\Directory;
 use Webrium\Route;
 use Webrium\Vite;
+use Webrium\Flash;
 
 
 /**
@@ -14,7 +15,7 @@ use Webrium\Vite;
  */
 function url($str = '')
 {
-    return Url::get($str);
+    return Url::to($str);
 }
 
 
@@ -32,17 +33,15 @@ function current_url()
 /**
  * Redirect the user to the given URL.
  *
- * Sends a Location header and returns a RequestBack instance
- * so the call can be returned from a controller action.
+ * Sends a Location header and ends the current request.
  *
  * @param  string $url         Target URL.
  * @param  int    $statusCode  HTTP redirect status code (default: 303 See Other).
- * @return \Webrium\RequestBack
+ * @return void
  */
 function redirect($url, $statusCode = 303)
 {
     header('Location: ' . $url, true, $statusCode);
-    return new \Webrium\RequestBack;
 }
 
 
@@ -51,12 +50,11 @@ function redirect($url, $statusCode = 303)
  *
  * Uses the HTTP_REFERER header to determine the previous URL.
  *
- * @return \Webrium\RequestBack
+ * @return void
  */
 function back()
 {
     header('Location: ' . $_SERVER['HTTP_REFERER']);
-    return new \Webrium\RequestBack;
 }
 
 
@@ -68,7 +66,11 @@ function back()
  */
 function errors($name = false)
 {
-    return \Webrium\RequestBack::getError($name);
+    if ($name === false) {
+        return Flash::errors();
+    }
+
+    return Flash::error($name);
 }
 
 
@@ -83,11 +85,7 @@ function errors($name = false)
  */
 function old($name, $default = '')
 {
-    $old = \Webrium\RequestBack::getOldParamsValues();
-    if (isset($old[$name])) {
-        return $old[$name];
-    }
-    return $default;
+    return Flash::old($name, $default);
 }
 
 
@@ -99,7 +97,7 @@ function old($name, $default = '')
  */
 function message($justGetText = false)
 {
-    return \Webrium\RequestBack::getMessage($justGetText);
+    return Flash::getMessage($justGetText);
 }
 
 

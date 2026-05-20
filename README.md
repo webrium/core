@@ -27,6 +27,7 @@ Explore the full power of Webrium Core through our detailed guides:
 *   **[App Initialization](https://github.com/webrium/core/wiki/App)**: Learn about the application structure and boot process.
 *   **[Routing System](https://github.com/webrium/core/wiki/Route)**: Define and manage clean, RESTful routes easily.
 *   **[Helper Functions](https://github.com/webrium/core/wiki/Helpers)**: Global shortcuts for URLs, redirects, input, paths, and more.
+*   **[Flash](https://github.com/webrium/core/wiki/Flash)**: Manage one-time session flash data, old input, and message display.
 
 #### 🌐 Request & Response
 *   **[URL Helpers](https://github.com/webrium/core/wiki/Url)**: Manage and generate dynamic URLs effortlessly.
@@ -42,6 +43,7 @@ Explore the full power of Webrium Core through our detailed guides:
 *   **[File Manager](https://github.com/webrium/core/wiki/File)**: Read, write, stream, download, and manage files and directories.
 *   **[Session Manager](https://github.com/webrium/core/wiki/Session)**: Store and retrieve session data, flash messages, and counters.
 *   **[File Upload](https://github.com/webrium/core/wiki/Upload)**: A streamlined way to handle file uploads safely.
+*   **[Vite](https://github.com/webrium/core/wiki/Vite)**: Seamlessly include development and production frontend assets.
 
 ---
 
