@@ -1,17 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Webrium;
 
-use Webrium\App;
 use Webrium\Debug;
-use Webrium\Directory;
 
 /**
  * File Manager Class
- * 
- * A comprehensive file management utility that provides methods for file operations,
- * streaming, downloading, and directory management.
- * 
+ *
+ * A focused file I/O utility. Responsible for everything that touches the
+ * filesystem at the byte level: reading, writing, copying, moving, deleting,
+ * streaming, downloading, and querying file metadata.
+ *
+ * PHP execution (include/require) and controller dispatching are intentionally
+ * absent here — those responsibilities live in Kernel.
+ *
  * Features:
  * - File existence and validation checks
  * - File reading and writing operations
@@ -20,11 +24,9 @@ use Webrium\Directory;
  * - Image serving with proper MIME types
  * - Directory operations (recursive delete, file listing)
  * - File hashing and metadata retrieval
- * - PHP file execution (include/require)
- * - Controller method execution
- * 
+ *
  * @package Webrium
- * @version 2.0.0
+ * @version 2.1.0
  */
 class File
 {
@@ -189,131 +191,6 @@ class File
         finfo_close($finfo);
 
         return $mimeType;
-    }
-
-    /**
-     * Include and execute a PHP file
-     *
-     * @param string $path The path to the file
-     * @return bool True if the file was successfully included, false otherwise
-     */
-    public static function run(string $path): bool
-    {
-        if (self::exists($path)) {
-            include $path;
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Include and execute a PHP file only once
-     *
-     * @param string $path The path to the file
-     * @return bool True if the file was successfully included, false otherwise
-     */
-    public static function runOnce(string $path): bool
-    {
-        if (self::exists($path)) {
-            include_once $path;
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Require a PHP file (throws error if not found)
-     *
-     * @param string $path The path to the file
-     * @return bool True if the file was successfully required
-     */
-    public static function requireFile(string $path): bool
-    {
-        if (self::exists($path)) {
-            require $path;
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Require a PHP file only once
-     *
-     * @param string $path The path to the file
-     * @return bool True if the file was successfully required
-     */
-    public static function requireOnce(string $path): bool
-    {
-        if (self::exists($path)) {
-            require_once $path;
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * Include multiple files from a directory based on an array of filenames
-     *
-     * @param string $pathName The name or path of the directory
-     * @param array $files An array of filenames to include
-     * @return int Number of files successfully included
-     */
-    public static function source(string $pathName, array $files): int
-    {
-        $path = Directory::path($pathName);
-        $included = 0;
-
-        foreach ($files as $file) {
-            if (self::runOnce("$path/$file")) {
-                $included++;
-            }
-        }
-
-        return $included;
-    }
-
-    /**
-     * Execute a method on a controller class
-     *
-     * @param string $dirName The name of the directory
-     * @param string $className The name of the class
-     * @param string $methodName The name of the method to execute
-     * @param array $params An array of parameters to pass to the method
-     * @return void
-     */
-    public static function executeControllerMethod(
-        string $dirName,
-        string $className,
-        string $methodName,
-        array $params = []
-    ): void {
-        $dir = Directory::get($dirName);
-        $class = "$dir\\$className";
-        $class = str_replace('/', '\\', $class);
-
-        if (!class_exists($class)) {
-            Debug::triggerError("Class $class not found", "$className.php");
-            return;
-        }
-
-        $controller = new $class();
-
-        // Call initialization method if exists
-        if (method_exists($controller, '__init')) {
-            $controller->__init();
-        }
-
-        // Execute the main method
-        if (method_exists($controller, $methodName)) {
-            App::ReturnData($controller->{$methodName}(...$params));
-        } else {
-            Debug::triggerError("Method $methodName not found in $class", "$className.php");
-        }
-
-        // Call cleanup method if exists
-        if (method_exists($controller, '__end')) {
-            $controller->__end();
-        }
     }
 
     /**
