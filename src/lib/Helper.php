@@ -1,8 +1,10 @@
 <?php
-use Webrium\App;
+
 use Webrium\Url;
+use Webrium\Header;
 use Webrium\Directory;
 use Webrium\Route;
+use Webrium\App;
 use Webrium\Vite;
 use Webrium\Flash;
 
@@ -13,7 +15,7 @@ use Webrium\Flash;
  * @param  string $str  Relative path (e.g. 'products/list').
  * @return string       Absolute URL.
  */
-function url($str = '')
+function url(string $str = ''): string
 {
     return Url::to($str);
 }
@@ -24,47 +26,64 @@ function url($str = '')
  *
  * @return string The full URL of the current request.
  */
-function current_url()
+function current_url(): string
 {
     return Url::current();
 }
 
 
 /**
- * Redirect the user to the given URL.
- *
- * Sends a Location header and ends the current request.
+ * Redirect the user to the given URL and terminate the request.
  *
  * @param  string $url         Target URL.
  * @param  int    $statusCode  HTTP redirect status code (default: 303 See Other).
- * @return void
+ * @return never
  */
-function redirect($url, $statusCode = 303)
+function redirect(string $url, int $statusCode = 303): never
 {
     header('Location: ' . $url, true, $statusCode);
+    exit;
 }
 
 
 /**
- * Redirect the user back to the previous page.
+ * Redirect the user back to the previous page and terminate the request.
  *
- * Uses the HTTP_REFERER header to determine the previous URL.
+ * Falls back to the application base URL when no referer header is present.
  *
- * @return void
+ * @return never
  */
-function back()
+function back(): never
 {
-    header('Location: ' . $_SERVER['HTTP_REFERER']);
+    $url = Url::previous();
+    header('Location: ' . $url, true, 303);
+    exit;
+}
+
+
+/**
+ * Send an HTTP response and terminate the request.
+ *
+ * Arrays and objects are JSON-encoded automatically.
+ * Any other value is cast to string and sent as-is.
+ *
+ * @param  mixed $data        Response payload.
+ * @param  int   $statusCode  HTTP status code (default: 200).
+ * @return never
+ */
+function respond(mixed $data, int $statusCode = 200): never
+{
+    Header::respond($data, $statusCode);
 }
 
 
 /**
  * Retrieve validation error messages from the previous request.
  *
- * @param  string|false $name  Field name to retrieve a specific error, or false for all errors.
+ * @param  string|false $name  Field name for a specific error, or false for all errors.
  * @return mixed               Error message(s) from the previous request.
  */
-function errors($name = false)
+function errors(string|false $name = false): mixed
 {
     if ($name === false) {
         return Flash::errors();
@@ -83,7 +102,7 @@ function errors($name = false)
  * @param  mixed  $default  Default value if the field is not found.
  * @return mixed            The old input value or the default.
  */
-function old($name, $default = '')
+function old(string $name, mixed $default = ''): mixed
 {
     return Flash::old($name, $default);
 }
@@ -95,7 +114,7 @@ function old($name, $default = '')
  * @param  bool $justGetText  When true, returns only the message text without metadata.
  * @return mixed              Flash message data.
  */
-function message($justGetText = false)
+function message(bool $justGetText = false): mixed
 {
     return Flash::getMessage($justGetText);
 }
@@ -104,13 +123,16 @@ function message($justGetText = false)
 /**
  * Retrieve an input value from the current request.
  *
- * @param  string|null $name     Input field name. Pass null to get all inputs.
+ * Reads GET params or the request body (JSON or form-encoded).
+ * Pass null to receive the entire input array.
+ *
+ * @param  string|null $name     Input field name; null returns all inputs.
  * @param  mixed       $default  Default value if the field is not present.
  * @return mixed                 Input value or default.
  */
-function input($name = null, $default = null)
+function input(?string $name = null, mixed $default = null): mixed
 {
-    return App::input($name, $default);
+    return Url::input($name, $default);
 }
 
 
@@ -120,9 +142,9 @@ function input($name = null, $default = null)
  * @param  string $path  Relative path inside the public directory.
  * @return string        Absolute filesystem path.
  */
-function public_path($path = '')
+function public_path(string $path = ''): string
 {
-    return Directory::path('public') . "/$path";
+    return Directory::path('public') . ($path !== '' ? "/$path" : '');
 }
 
 
@@ -132,9 +154,9 @@ function public_path($path = '')
  * @param  string $path  Relative path inside the app directory.
  * @return string        Absolute filesystem path.
  */
-function app_path($path = '')
+function app_path(string $path = ''): string
 {
-    return Directory::path('app') . "/$path";
+    return Directory::path('app') . ($path !== '' ? "/$path" : '');
 }
 
 
@@ -144,9 +166,9 @@ function app_path($path = '')
  * @param  string $path  Relative path inside the storage directory.
  * @return string        Absolute filesystem path.
  */
-function storage_path($path = '')
+function storage_path(string $path = ''): string
 {
-    return Directory::path('storage_app') . "/$path";
+    return Directory::path('storage_app') . ($path !== '' ? "/$path" : '');
 }
 
 
@@ -156,20 +178,20 @@ function storage_path($path = '')
  * @param  string $path  Relative path from the root.
  * @return string        Absolute filesystem path.
  */
-function root_path($path = '')
+function root_path(string $path = ''): string
 {
-    return App::getRootPath() . "/$path";
+    return App::getRootPath() . ($path !== '' ? "/$path" : '');
 }
 
 
 /**
  * Translate a language key into the current locale's string.
  *
- * @param  string $key           Translation key (e.g. 'auth.login_failed').
- * @param  array  $replacements  Key-value pairs to substitute into the translation string.
- * @return string                Translated string.
+ * @param  string  $key           Translation key (e.g. 'auth.login_failed').
+ * @param  array   $replacements  Key-value pairs to substitute into the translation string.
+ * @return string                 Translated string.
  */
-function lang($key, $replacements = [])
+function lang(string $key, array $replacements = []): string
 {
     return App::trans($key, $replacements);
 }
@@ -182,7 +204,7 @@ function lang($key, $replacements = [])
  * @param  mixed  $default  Default value if the variable is not set.
  * @return mixed            Environment variable value or default.
  */
-function env($name, $default = false)
+function env(string $name, mixed $default = false): mixed
 {
     return App::env($name, $default);
 }
@@ -192,10 +214,10 @@ function env($name, $default = false)
  * Generate a URL for a named route.
  *
  * @param  string $name    Route name.
- * @param  mixed  $params  Route parameters.
+ * @param  array  $params  Route parameter values keyed by placeholder name.
  * @return string          Generated URL.
  */
-function route($name, $params)
+function route(string $name, array $params = []): string
 {
     return Route::route($name, $params);
 }
@@ -204,8 +226,8 @@ function route($name, $params)
 /**
  * Generate Vite asset HTML tags (script and/or link) for the current entry point.
  *
- * In development mode, returns the Vite dev server script tag.
- * In production mode, returns the hashed asset tags from the manifest.
+ * In development mode returns the Vite dev-server script tag.
+ * In production mode returns the hashed asset tags from the manifest.
  *
  * @return string HTML tags for the Vite assets.
  */
