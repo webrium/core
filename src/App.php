@@ -170,32 +170,6 @@ class App
     }
 
     /**
-     * Return data with appropriate content type headers.
-     *
-     * @deprecated Use Header::respond() directly.
-     * @param mixed $data       Response payload.
-     * @param int   $statusCode HTTP status code (default: 200).
-     * @return never
-     */
-    public static function returnData($data, int $statusCode = 200): never
-    {
-        Header::respond($data, $statusCode);
-    }
-
-    /**
-     * Alias kept for internal callers that used PascalCase by mistake.
-     *
-     * @deprecated Use Header::respond() directly.
-     * @param mixed $data
-     * @param int   $statusCode
-     * @return never
-     */
-    public static function ReturnData($data, int $statusCode = 200): never
-    {
-        Header::respond($data, $statusCode);
-    }
-
-    /**
      * Get an environment variable
      *
      * @param string $key Environment variable name
