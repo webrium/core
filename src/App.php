@@ -75,44 +75,8 @@ class App
     public static function initialize(string $dir): void
     {
         self::setRootPath($dir);
-        self::registerAutoloader();
         self::loadHelperFunctions();
         Url::enforce();
-    }
-
-    /**
-     * Register the class autoloader
-     *
-     * @return void
-     */
-    private static function registerAutoloader(): void
-    {
-        spl_autoload_register(function (string $class): void {
-            // Skip classes not in our namespace
-            if (strpos($class, 'Webrium\\') !== 0 && strpos(strtolower($class), 'app\\') !== 0) {
-                return;
-            }
-
-            // Convert namespace to path
-            $path = str_replace('\\', DIRECTORY_SEPARATOR, $class);
-
-            // Handle App namespace (convert to lowercase 'app' directory)
-            if (strpos($class, 'App\\') === 0) {
-                $path = 'app' . substr($path, 3);
-            }
-
-            $filePath = self::getRootPath() . DIRECTORY_SEPARATOR . $path . '.php';
-
-            if (File::exists($filePath)) {
-                Kernel::runOnce($filePath);
-                return;
-            }
-
-            // Only throw error if in debug mode
-            if (Debug::isDisplayingErrors()) {
-                Debug::triggerError("Class '{$class}' not found at path: " . str_replace(self::getRootPath(), '', $filePath));
-            }
-        });
     }
 
     /**
