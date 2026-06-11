@@ -336,12 +336,7 @@ class Route
     }
 
     /**
-     * Execute a handler passed as [ClassName::class, 'method'].
-     *
-     * The class name is extracted from the fully-qualified name so it
-     * works identically to the string syntax.
-     *
-     * @param  array $handler  Two-element array: [FQCN, methodName]
+     * @param  array{0: class-string, 1: string} $handler
      * @param  array $params
      * @return void
      */
@@ -352,19 +347,11 @@ class Route
             return;
         }
 
-        // Extract the short class name from the FQCN (e.g. App\Controllers\UserController → UserController)
-        $fqcn       = $handler[0];
-        $method     = $handler[1];
-        $parts      = explode('\\', $fqcn);
-        $shortClass = end($parts);
-
-        Kernel::executeControllerMethod('controllers', $shortClass, $method, $params);
+        Kernel::executeControllerMethod($handler[0], $handler[1], $params);
     }
 
     /**
-     * Parse and execute a "Controller@method" handler string.
-     *
-     * @param  string $handlerString
+     * @param  string $handlerString  Format: 'ControllerName@method'
      * @param  array  $params
      * @return void
      */
@@ -375,8 +362,10 @@ class Route
             return;
         }
 
-        [$controller, $method] = explode('@', $handlerString, 2);
-        Kernel::executeControllerMethod('controllers', $controller, $method, $params);
+        [$shortClass, $method] = explode('@', $handlerString, 2);
+        $fqcn = 'App\\Controllers\\' . $shortClass;
+
+        Kernel::executeControllerMethod($fqcn, $method, $params);
     }
 
     /**
