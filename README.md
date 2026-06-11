@@ -17,6 +17,32 @@
 
 **Webrium Core** is a high-performance PHP component library designed to simplify web development. While it serves as the backbone of the Webrium Framework, it is built to be completely **standalone**. Whether you're building a microservice or a full-scale web app, Webrium Core provides the essential tools without the bloat.
 
+## 🚀 Quick Start
+
+### 1. Installation
+Get started via Composer:
+```bash
+composer require webrium/core
+```
+
+### 2. Basic Setup (index.php)
+
+```php
+<?php
+require_once __DIR__ . '/vendor/autoload.php';
+
+use Webrium\App;
+use Webrium\Route;
+
+App::initialize(__DIR__);
+
+Route::get('/', function() {
+    return "Welcome to Webrium Core! 🚀";
+});
+
+App::run();
+```
+
 ---
 
 ## 📚 Comprehensive Documentation (Wiki)
@@ -47,28 +73,4 @@ Explore the full power of Webrium Core through our detailed guides:
 
 ---
 
-## 🚀 Quick Start
 
-### 1. Installation
-Get started via Composer:
-```bash
-composer require webrium/core
-```
-
-### 2. Basic Setup (index.php)
-
-```php
-<?php
-require_once __DIR__ . '/vendor/autoload.php';
-
-use Webrium\App;
-use Webrium\Route;
-
-App::initialize(__DIR__);
-
-Route::get('/', function() {
-    return "Welcome to Webrium Core! 🚀";
-});
-
-App::run();
-```
