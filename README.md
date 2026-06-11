@@ -62,11 +62,7 @@ composer require webrium/core
 require_once __DIR__ . '/vendor/autoload.php';
 
 use Webrium\App;
-use Webrium\Debug;
 use Webrium\Route;
-
-Debug::enableErrorDisplay(true);
-Debug::initialize();
 
 App::initialize(__DIR__);
 
