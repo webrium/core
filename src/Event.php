@@ -4,39 +4,30 @@ declare(strict_types=1);
 
 namespace Webrium;
 
-use Closure;
-
 class Event
 {
-    /**
-     * @var Event|null The singleton instance
-     */
     private static ?Event $instance = null;
 
     /**
-     * @var array<string, callable[]> List of registered listeners
+     * Persistent listeners — run every time the event is emitted.
+     * Structure: [ eventName => [ callable, ... ] ]
+     *
+     * @var array<string, callable[]>
      */
     private array $listeners = [];
 
     /**
-     * Private constructor to prevent direct instantiation (Singleton pattern).
-     */
-    private function __construct()
-    {
-    }
-
-    /**
-     * Prevent cloning of the instance.
-     */
-    private function __clone()
-    {
-    }
-
-    /**
-     * Get the Singleton instance of the Event class.
+     * One-shot listeners — removed immediately after their first execution.
+     * Each entry stores the original callback so it can be matched for removal.
+     * Structure: [ eventName => [ ['wrapper' => callable, 'original' => callable], ... ] ]
      *
-     * @return Event
+     * @var array<string, array<int, array{wrapper: callable, original: callable}>>
      */
+    private array $onceListeners = [];
+
+    private function __construct() {}
+    private function __clone() {}
+
     public static function getInstance(): Event
     {
         if (self::$instance === null) {
@@ -46,94 +37,123 @@ class Event
     }
 
     /**
-     * Register a new event listener.
+     * Register a persistent event listener.
      *
-     * @param string   $event    The name of the event.
-     * @param callable $callback The callback function to execute when the event is triggered.
+     * @param string   $event    Event name.
+     * @param callable $callback Invoked every time the event is emitted.
      * @return void
      */
     public static function on(string $event, callable $callback): void
     {
-        $instance = self::getInstance();
-        $instance->listeners[$event][] = $callback;
+        self::getInstance()->listeners[$event][] = $callback;
     }
 
     /**
-     * Trigger an event and execute all registered listeners.
+     * Register a one-shot event listener.
      *
-     * @param string $event The name of the event to trigger.
-     * @param mixed  ...$args Arguments to pass to the listener callbacks.
+     * The callback is invoked the first time the event fires and then
+     * automatically removed — it will never run again.
+     *
+     * @param string   $event    Event name.
+     * @param callable $callback Invoked once on first emission.
+     * @return void
+     */
+    public static function once(string $event, callable $callback): void
+    {
+        $instance = self::getInstance();
+
+        $wrapper = function () use ($event, $callback, &$wrapper, $instance): void {
+            // Remove this one-shot entry before invoking the callback so that
+            // even if the callback re-emits the same event it won't fire again.
+            $instance->removeOnceWrapper($event, $wrapper);
+
+            $callback(...func_get_args());
+        };
+
+        $instance->onceListeners[$event][] = [
+            'wrapper'  => $wrapper,
+            'original' => $callback,
+        ];
+    }
+
+    /**
+     * Emit an event, invoking all matching persistent and one-shot listeners.
+     *
+     * One-shot listeners are dequeued before being called so that re-entrant
+     * emissions of the same event inside a once-callback do not trigger them
+     * a second time.
+     *
+     * @param string $event  Event name.
+     * @param mixed  ...$args Arguments forwarded to every listener.
      * @return void
      */
     public static function emit(string $event, mixed ...$args): void
     {
         $instance = self::getInstance();
 
-        if (isset($instance->listeners[$event])) {
+        // Drain one-shot listeners first: copy the current list, clear it,
+        // then call each wrapper (which internally removes itself again — harmless).
+        if (!empty($instance->onceListeners[$event])) {
+            $toRun = $instance->onceListeners[$event];
+            unset($instance->onceListeners[$event]);
+
+            foreach ($toRun as $entry) {
+                ($entry['wrapper'])(...$args);
+            }
+        }
+
+        // Persistent listeners
+        if (!empty($instance->listeners[$event])) {
             foreach ($instance->listeners[$event] as $callback) {
-                // Execute the callback directly (Faster than call_user_func_array in PHP 8)
                 $callback(...$args);
             }
         }
     }
 
     /**
-     * Register an event listener that runs only once.
+     * Remove all persistent and one-shot listeners for the given event.
      *
-     * @param string   $event    The name of the event.
-     * @param callable $callback The callback function.
-     * @return void
-     */
-    public static function once(string $event, callable $callback): void
-    {
-        $wrapper = function (...$args) use ($event, $callback, &$wrapper) {
-            // Remove the listener immediately after execution
-            /* Note: To remove a specific closure properly, complex logic is needed.
-               For simplicity in 'once', we execute and then we rely on the fact 
-               that this specific wrapper won't be called again if we don't re-register it.
-               However, a robust 'once' usually requires identifying the listener key.
-               
-               Here is a simple implementation:
-            */
-            $callback(...$args);
-            // In a simple array structure, removing "self" during iteration can be tricky.
-            // This basic implementation assumes 'once' is handled by the user logic or 
-            // a more complex EventDispatcher is needed for full 'once' support.
-        };
-        
-        // Use a static property or simpler logic if full 'once' feature is needed.
-        // For now, let's stick to standard 'on' to keep it clean, 
-        // or just rely on manual removal if needed.
-        
-        // Actually, let's keep it simple as per request and not overcomplicate with 'once' 
-        // unless strictly requested.
-        self::on($event, $callback);
-    }
-
-    /**
-     * Remove all listeners for a specific event.
-     *
-     * @param string $event The name of the event to clear.
+     * @param string $event Event name.
      * @return void
      */
     public static function remove(string $event): void
     {
         $instance = self::getInstance();
-        
-        if (isset($instance->listeners[$event])) {
-            unset($instance->listeners[$event]);
-        }
+        unset($instance->listeners[$event], $instance->onceListeners[$event]);
     }
 
     /**
-     * Check if an event has any listeners.
+     * Check whether any listener (persistent or one-shot) is registered for an event.
      *
-     * @param string $event
+     * @param string $event Event name.
      * @return bool
      */
     public static function has(string $event): bool
     {
         $instance = self::getInstance();
-        return !empty($instance->listeners[$event]);
+        return !empty($instance->listeners[$event])
+            || !empty($instance->onceListeners[$event]);
+    }
+
+    /**
+     * Remove a specific one-shot wrapper from the pending list.
+     * Called internally by the wrapper closure before it executes.
+     *
+     * @param string   $event   Event name.
+     * @param callable $wrapper The wrapper closure to remove.
+     * @return void
+     */
+    private function removeOnceWrapper(string $event, callable $wrapper): void
+    {
+        if (empty($this->onceListeners[$event])) {
+            return;
+        }
+
+        foreach ($this->onceListeners[$event] as $index => $entry) {
+            if ($entry['wrapper'] === $wrapper) {
+                array_splice($this->onceListeners[$event], $index, 1);
+                break;
+            }
+        }
     }
 }

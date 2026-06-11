@@ -1,6 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Webrium;
+
+use Webrium\Debug;
 
 /**
  * URL Helper Class
@@ -691,5 +695,53 @@ class Url
     {
         self::$baseUrl = null;
         self::$parsedUrl = null;
+    }
+
+    // -------------------------------------------------------------------------
+    // Request Body
+    // -------------------------------------------------------------------------
+
+    /**
+     * Get a value from the current request input (GET params or POST/PUT/DELETE body).
+     *
+     * Parses the body once per request and caches the result. Supports both
+     * application/json and application/x-www-form-urlencoded bodies.
+     *
+     * @param  string|null $key     Input key. Pass null to return all input as an array.
+     * @param  mixed       $default Returned when the key is absent.
+     * @return mixed
+     */
+    public static function input(?string $key = null, mixed $default = null): mixed
+    {
+        static $requestData = null;
+
+        if ($requestData === null) {
+            $requestData = [];
+            $method      = self::method();
+            $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+            $isJson      = str_contains($contentType, 'application/json');
+
+            if ($method === 'GET') {
+                $requestData = $_GET;
+            } elseif (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+                if ($isJson) {
+                    $raw     = file_get_contents('php://input');
+                    $decoded = json_decode($raw, true);
+
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        Debug::triggerError(
+                            'Invalid JSON input: ' . json_last_error_msg(),
+                            false, false, 400
+                        );
+                    } else {
+                        $requestData = $decoded ?? [];
+                    }
+                } else {
+                    $requestData = $_POST;
+                }
+            }
+        }
+
+        return $key === null ? $requestData : ($requestData[$key] ?? $default);
     }
 }

@@ -1,9 +1,11 @@
 <?php
+
+declare(strict_types=1);
+
 namespace Webrium;
 
-use Webrium\File;
-use Webrium\Directory;
 use Webrium\App;
+use Webrium\Directory;
 
 /**
  * Validator class for form data validation.
@@ -59,7 +61,7 @@ class Validator
      */
     public function __construct(?array $data = null)
     {
-        $this->data = $data ?? input();
+        $this->data = $data ?? input() ?? [];
         $this->loadMessages();
     }
 
@@ -77,9 +79,10 @@ class Validator
             return;
         }
 
-        $messagesPath = Directory::path('langs') . '/' . App::getLocale() . '/validation.php';
-        
-        if (!File::exists($messagesPath)) {
+        $locale       = App::getLocale();
+        $messagesPath = Directory::path('langs') . '/' . $locale . '/validation.php';
+
+        if (!file_exists($messagesPath)) {
             throw new \Exception("Validation messages file not found: '$messagesPath'");
         }
 

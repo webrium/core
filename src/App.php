@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Webrium;
 
 use Webrium\Url;
 use Webrium\Header;
 use Webrium\Debug;
 use Webrium\File;
+use Webrium\Kernel;
 use Webrium\Directory;
 
 /**
@@ -72,44 +75,8 @@ class App
     public static function initialize(string $dir): void
     {
         self::setRootPath($dir);
-        self::registerAutoloader();
         self::loadHelperFunctions();
         Url::enforce();
-    }
-
-    /**
-     * Register the class autoloader
-     *
-     * @return void
-     */
-    private static function registerAutoloader(): void
-    {
-        spl_autoload_register(function (string $class): void {
-            // Skip classes not in our namespace
-            if (strpos($class, 'Webrium\\') !== 0 && strpos(strtolower($class), 'app\\') !== 0) {
-                return;
-            }
-
-            // Convert namespace to path
-            $path = str_replace('\\', DIRECTORY_SEPARATOR, $class);
-
-            // Handle App namespace (convert to lowercase 'app' directory)
-            if (strpos($class, 'App\\') === 0) {
-                $path = 'app' . substr($path, 3);
-            }
-
-            $filePath = self::getRootPath() . DIRECTORY_SEPARATOR . $path . '.php';
-
-            if (File::exists($filePath)) {
-                File::runOnce($filePath);
-                return;
-            }
-
-            // Only throw error if in debug mode
-            if (Debug::isDisplayingErrors()) {
-                Debug::triggerError("Class '{$class}' not found at path: " . str_replace(self::getRootPath(), '', $filePath));
-            }
-        });
     }
 
     /**
@@ -119,7 +86,7 @@ class App
      */
     private static function loadHelperFunctions(): void
     {
-        File::runOnce(__DIR__ . '/lib/Helper.php');
+        Kernel::runOnce(__DIR__ . '/lib/Helper.php');
     }
 
     /**
@@ -154,76 +121,16 @@ class App
     }
 
     /**
-     * Get request input data
+     * Get request input data.
      *
-     * @param string|null $key Key to retrieve, null to get all input
-     * @param mixed $default Default value if key is not found
-     * @return mixed Request data or default value
+     * @deprecated Use Url::input() directly.
+     * @param string|null $key     Input key; null returns all input.
+     * @param mixed       $default Returned when the key is absent.
+     * @return mixed
      */
     public static function input(?string $key = null, $default = null)
     {
-        static $requestData = null;
-
-        // Parse request data only once
-        if ($requestData === null) {
-            $requestData = [];
-            $method = Url::method();
-            $contentType = $_SERVER["CONTENT_TYPE"] ?? '';
-            $isJson = strpos($contentType, 'application/json') !== false;
-
-            // Handle GET requests
-            if ($method === 'GET') {
-                $requestData = $_GET;
-            }
-            // Handle POST/PUT/DELETE requests
-            elseif (in_array($method, ['POST', 'PUT', 'DELETE'])) {
-                if ($isJson) {
-                    $jsonInput = file_get_contents('php://input');
-                    $decoded = json_decode($jsonInput, true);
-
-                    // Check for JSON decoding errors
-                    if (json_last_error() !== JSON_ERROR_NONE) {
-                        Debug::triggerError('Invalid JSON input: ' . json_last_error_msg(), false, false, 400);
-                    } else {
-                        $requestData = $decoded ?? [];
-                    }
-                } else {
-                    $requestData = $_POST;
-                }
-            }
-        }
-
-        if ($key === null) {
-            return $requestData;
-        }
-
-        return $requestData[$key] ?? $default;
-    }
-
-    /**
-     * Return data with appropriate content type headers
-     *
-     * @param mixed $data Data to return (array, object, or string)
-     * @param int $statusCode HTTP status code (default: 200)
-     * @return void
-     */
-    public static function returnData($data, int $statusCode = 200): void
-    {
-        http_response_code($statusCode);
-
-        if (is_array($data) || is_object($data)) {
-            header('Content-Type: application/json; charset=utf-8');
-            $data = json_encode($data);
-
-            // Check for JSON encoding errors
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                Debug::triggerError('JSON encoding error: ' . json_last_error_msg(), false, false, 500);
-                $data = json_encode(['error' => 'Internal server error']);
-            }
-        }
-
-        echo $data;
-        exit;
+        return Url::input($key, $default);
     }
 
     /**

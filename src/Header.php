@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Webrium;
 
 /**
@@ -676,5 +678,39 @@ class Header
     public static function clearCache(): void
     {
         self::$headerCache = null;
+    }
+
+
+    /**
+     * Send an HTTP response and terminate the request.
+     *
+     * Arrays and objects are JSON-encoded automatically and the
+     * Content-Type header is set to application/json. Any other value
+     * is cast to string and sent as-is.
+     *
+     * @param  mixed $data        Response payload.
+     * @param  int   $statusCode  HTTP status code (default: 200).
+     * @return never
+     */
+    public static function respond(mixed $data, int $statusCode = 200): never
+    {
+        http_response_code($statusCode);
+
+        if (is_array($data) || is_object($data)) {
+            header('Content-Type: application/json; charset=utf-8');
+            $encoded = json_encode($data);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Internal server error']);
+                exit;
+            }
+
+            echo $encoded;
+        } else {
+            echo $data;
+        }
+
+        exit;
     }
 }
