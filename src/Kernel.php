@@ -108,6 +108,9 @@ class Kernel
         string $methodName,
         array $params = []
     ): void {
+
+        $className = str_replace('/', '\\', $className);
+
         if (!class_exists($className)) {
             Debug::triggerError("Class $className not found");
             return;
