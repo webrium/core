@@ -231,7 +231,9 @@ function route(string $name, array $params = []): string
  *
  * @return string HTML tags for the Vite assets.
  */
-function vite_assets(): string
+function vite_assets(?string $entryPoint = null): string
 {
-    return Vite::getInstance()->assets();
+    return $entryPoint === null
+        ? Vite::getInstance()->assets()
+        : Vite::getInstance()->assets($entryPoint);
 }
