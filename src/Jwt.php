@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace webrium;
+namespace Webrium;
 
 use InvalidArgumentException;
 
