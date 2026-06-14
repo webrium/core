@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Webrium;
 
-use Webrium\Debug;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 
 /**
  * File Manager Class
@@ -43,14 +44,14 @@ class File
      * @var array
      */
     private const IMAGE_MIME_TYPES = [
-        'jpg'  => 'image/jpeg',
+        'jpg' => 'image/jpeg',
         'jpeg' => 'image/jpeg',
-        'png'  => 'image/png',
-        'gif'  => 'image/gif',
-        'svg'  => 'image/svg+xml',
+        'png' => 'image/png',
+        'gif' => 'image/gif',
+        'svg' => 'image/svg+xml',
         'webp' => 'image/webp',
-        'bmp'  => 'image/bmp',
-        'ico'  => 'image/x-icon',
+        'bmp' => 'image/bmp',
+        'ico' => 'image/x-icon',
     ];
 
     /**
@@ -350,14 +351,16 @@ class File
             return false;
         }
 
-        $files = self::getFiles($dir, []);
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
 
-        foreach ($files as $file) {
-            $path = "$dir/$file";
-            if (self::isDirectory($path)) {
-                self::deleteDirectory($path);
+        foreach ($iterator as $file) {
+            if ($file->isDir()) {
+                rmdir($file->getRealPath());
             } else {
-                unlink($path);
+                unlink($file->getRealPath());
             }
         }
 
@@ -502,7 +505,7 @@ class File
 
         $file = fopen($filePath, 'rb');
         fseek($file, $start);
-        
+
         $bufferSize = self::STREAM_BUFFER_SIZE;
         while (!feof($file) && ($pos = ftell($file)) <= $end) {
             if ($pos + $bufferSize > $end) {
@@ -512,7 +515,7 @@ class File
             ob_flush();
             flush();
         }
-        
+
         fclose($file);
     }
 
