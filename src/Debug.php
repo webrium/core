@@ -127,9 +127,6 @@ class Debug
      */
     private static function registerExceptionHandler(): void
     {
-
-
-
         set_exception_handler(function (Throwable $exception) {
 
             $message = $exception->getMessage();
@@ -146,19 +143,25 @@ class Debug
             } while ($target !== null);
 
             if (!isset($file)) {
-                $file = self::resolveFilePath($exception->getFile());
-                $line = $exception->getLine();
+                $userFrame = self::findUserFrameInTrace($exception->getTrace());
+
+                if ($userFrame !== null) {
+                    $file = $userFrame['file'];
+                    $line = $userFrame['line'];
+                } else {
+                    $file = self::resolveFilePath($exception->getFile());
+                    $line = $exception->getLine();
+                }
             }
 
             $line = $line ?? $exception->getLine();
-
 
             $parts = explode(': ', $message);
             $cleanMessage = end($parts);
 
             $errorTypeMap = [
-                'Webrium\View\ViewException'         => 'View Error',
-                'Webrium\View\ViewTemplateException' => 'Template Error',
+                'Webrium\\View\\ViewException'         => 'View Error',
+                'Webrium\\View\\ViewTemplateException' => 'Template Error',
                 'ErrorException'                     => 'PHP Error',
             ];
             $errorType = $errorTypeMap[get_class($exception)] ?? get_class($exception);
@@ -169,7 +172,8 @@ class Debug
                 $line,
                 500,
                 true,
-                $errorType
+                $errorType,
+                $exception->getTrace()
             );
         });
     }
@@ -233,13 +237,14 @@ class Debug
         $line = false,
         int $statusCode = 500,
         bool $isFatal = false,
-        string $errorType = 'Error'
+        string $errorType = 'Error',
+        ?array $exceptionTrace = null
     ): void {
         // Allow multiple non-fatal errors
         if (!$isFatal && self::$hasError) {
             // Log additional errors but don't stop execution
             if (self::$writeErrors) {
-                $backtrace = self::getFormattedBacktraceForLogging($file);
+                $backtrace = self::getFormattedBacktraceForLogging($file, $exceptionTrace);
                 self::logError($message, $backtrace, $line, $statusCode, $errorType);
             }
             return;
@@ -257,8 +262,8 @@ class Debug
         self::$errorType = $errorType;
 
         // Get backtrace information
-        $displayBacktrace = self::getFormattedBacktraceForDisplay($file);
-        $logBacktrace = self::getFormattedBacktraceForLogging($file);
+        $displayBacktrace = self::getFormattedBacktraceForDisplay($file, $exceptionTrace);
+        $logBacktrace = self::getFormattedBacktraceForLogging($file, $exceptionTrace);
 
         // Trigger error event
         if (class_exists(Event::class)) {
@@ -567,7 +572,44 @@ class Debug
     /**
      * Get formatted backtrace for logging
      */
-    private static function getFormattedBacktraceForLogging($initialFile): string
+    /**
+     * Return the first application frame from a trace array,
+     * skipping vendor and framework internals.
+     *
+     * @param  array $trace
+     * @return array|null
+     */
+    private static function findUserFrameInTrace(array $trace): ?array
+    {
+        foreach ($trace as $frame) {
+            if (!isset($frame['file'])) {
+                continue;
+            }
+
+            $file = $frame['file'];
+
+            // Skip vendor packages
+            if (strpos($file, DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR) !== false) {
+                continue;
+            }
+
+            // Skip Webrium core files
+            if (strpos($file, DIRECTORY_SEPARATOR . 'webrium' . DIRECTORY_SEPARATOR . 'core' . DIRECTORY_SEPARATOR . 'src') !== false) {
+                continue;
+            }
+
+            // Skip Debug.php itself
+            if (basename($file) === 'Debug.php') {
+                continue;
+            }
+
+            return $frame;
+        }
+
+        return null;
+    }
+
+    private static function getFormattedBacktraceForLogging($initialFile, ?array $exceptionTrace = null): string
     {
         $trace = [];
 
@@ -575,7 +617,7 @@ class Debug
             $trace[] = "  → {$initialFile}";
         }
 
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+        $backtrace = $exceptionTrace ?? debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
         $count = 1;
 
         foreach ($backtrace as $frame) {
@@ -609,7 +651,7 @@ class Debug
     /**
      * Get formatted backtrace for display
      */
-    private static function getFormattedBacktraceForDisplay($initialFile): string
+    private static function getFormattedBacktraceForDisplay($initialFile, ?array $exceptionTrace = null): string
     {
         $trace = [];
 
@@ -617,7 +659,7 @@ class Debug
             $trace[] = "<span style='color:#d32f2f;font-weight:bold;'>→ {$initialFile}</span>";
         }
 
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+        $backtrace = $exceptionTrace ?? debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
         $count = 1;
 
         foreach ($backtrace as $frame) {
