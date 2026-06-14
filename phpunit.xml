@@ -1,6 +1,5 @@
 <phpunit
         colors="true"
-        bootstrap="./tests/config.php"
         convertErrorsToExceptions="true"
         convertNoticesToExceptions="true"
         convertWarningsToExceptions="true"
@@ -12,7 +11,7 @@
 >
     <testsuites>
         <testsuite name="Your tests">
-            <file>./tests/FormValidationTest.php</file> 
+            <file>./tests/FileTest.php</file> 
 
         </testsuite>
     </testsuites>
