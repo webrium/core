@@ -364,16 +364,6 @@ class File
         return rmdir($dir);
     }
 
-    /**
-     * Alias for deleteDirectory
-     *
-     * @param string $dir The path to the directory
-     * @return bool True if the directory was successfully deleted, false otherwise
-     */
-    public static function delete_dir(string $dir): bool
-    {
-        return self::deleteDirectory($dir);
-    }
 
     /**
      * Create a directory
