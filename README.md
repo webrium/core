@@ -61,7 +61,7 @@ Explore the full power of Webrium Core through our detailed guides:
 *   **[HTTP Client](https://github.com/webrium/core/wiki/HttpClient)**: Perform outgoing requests with a simple, fluent interface.
 
 #### 🛡️ Security & Validation
-*   **[Data Validator](https://github.com/webrium/core/wiki/From-Validator)**: Robust tools for validating user input and forms.
+*   **[Data Validator](https://github.com/webrium/core/wiki/validator)**: Robust tools for validating user input and forms.
 *   **[JWT Integration](https://github.com/webrium/core/wiki/JWT-Documentation)**: Secure your APIs with JSON Web Tokens.
 *   **[Hash Utilities](https://github.com/webrium/core/wiki/Hash)**: Secure password hashing, HMAC, tokens, and more.
 
