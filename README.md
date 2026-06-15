@@ -36,9 +36,7 @@ use Webrium\Route;
 
 App::initialize(__DIR__);
 
-Route::get('/', function() {
-    return "Welcome to Webrium Core! 🚀";
-});
+Route::get('/', fn()=> "Welcome to Webrium Core! 🚀" );
 
 App::run();
 ```
