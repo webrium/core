@@ -1,0 +1,499 @@
+# webrium/core — LLM Reference
+
+## Install
+composer require webrium/core
+
+## Bootstrap (every app starts with this)
+```php
+<?php
+require_once __DIR__ . '/vendor/autoload.php';
+use Webrium\App;
+use Webrium\Route;
+App::initialize(__DIR__);
+// routes here
+App::run();
+```
+
+---
+
+## Routing — Webrium\Route
+
+```php
+Route::get('/path', handler);
+Route::post('/path', handler);
+Route::put('/path', handler);
+Route::patch('/path', handler);
+Route::delete('/path', handler);
+Route::any('/path', handler);
+```
+
+Handler types (all valid):
+```php
+// closure
+Route::get('/users', fn() => ['users' => []]);
+
+// dynamic params — passed as positional args
+Route::get('/users/{id}', fn($id) => ['id' => $id]);
+Route::get('/users/{id}/posts/{postId}', fn($id, $postId) => [...]);
+
+// string syntax
+Route::get('/users', 'UserController@index');
+
+// array syntax (IDE-friendly)
+Route::get('/users', [UserController::class, 'index']);
+```
+
+Route handler return value is auto-encoded as JSON and sent with correct Content-Type.
+
+Named routes:
+```php
+Route::get('/users/{id}', fn($id) => ['id' => $id])->name('users.show');
+$url = route('users.show', ['id' => 42]); // helper fn → /users/42
+Route::route('users.show', ['id' => 42]); // static method
+```
+
+Groups (prefix + middleware):
+```php
+Route::group('api/v1', function() {
+    Route::get('/status', fn() => ['ok' => true]);
+});
+
+Route::group(['prefix' => 'api', 'middleware' => $callable], function() {
+    Route::get('/me', fn() => ['user' => 'James Carter']);
+});
+```
+
+Custom 404:
+```php
+Route::setNotFoundHandler(fn() => ['error' => 'not found']);
+```
+
+Load routes from files:
+```php
+Route::source(['api.php', 'web.php']); // looks in registered 'routes' dir
+```
+
+---
+
+## Input — global helper + Webrium\Url
+
+```php
+input()              // all input as array
+input('key')         // single value, null if missing
+input('key', 'default')
+
+Url::input()         // same
+Url::input('key', 'default')
+```
+
+Behavior:
+- GET → reads $_GET
+- POST → reads $_POST (form-urlencoded) or json_decode(php://input) for application/json
+- PUT / PATCH / DELETE → parse_str(php://input) for form-urlencoded, json_decode for application/json
+
+---
+
+## Response
+
+Route handlers: return array → auto JSON response 200.
+
+For custom status codes use the global helper or static method:
+```php
+respond(['error' => 'not found'], 404);     // global fn (never returns)
+Header::respond(['error' => 'bad'], 422);   // static (never returns)
+```
+
+---
+
+## Validation — Webrium\Validator
+
+```php
+use Webrium\Validator;
+
+$v = new Validator(input()); // or new Validator($_POST) or any array
+
+$v->field('email', 'Email Address')   // second arg = label for messages
+  ->required()
+  ->email();
+
+$v->field('password')->required()->min(8);
+$v->field('password_confirmation')->required()->confirmed('password');
+
+$v->validate();          // bool
+$v->isValid();           // bool (alias)
+$v->passes();            // bool
+$v->fails();             // bool
+
+$v->getErrors();         // array of all errors
+$v->getFirstError();     // array|null — {field, message}
+$v->getFirstErrorMessage(); // string|null
+$v->getFieldErrors('email'); // array
+$v->hasError('email');   // bool
+```
+
+All rules (chainable):
+```
+required()  nullable()  sometimes()
+string()    integer()   numeric()   boolean()
+alpha()     alphaNum()
+min($n)     max($n)     between($min,$max)
+digits($n)  digitsBetween($min,$max)
+email()     url()       ip()        mac()       phone()     domain()
+in([...])   notIn([...])
+confirmed('other_field')   different('other_field')
+regex('/pattern/')
+date('Y-m-d')   // custom format optional
+json()      array()     object()
+```
+
+Modifiers:
+- `nullable()` — skip rules if value is empty
+- `sometimes()` — skip rules if field absent entirely
+- Each rule accepts optional custom message: `->required('Please fill this')`
+
+---
+
+## JWT — Webrium\Jwt
+
+```php
+use Webrium\Jwt;
+
+$jwt = new Jwt('secret-key');           // HS256 default
+$jwt = new Jwt('secret-key', 'HS512'); // HS256 | HS384 | HS512
+
+$token   = $jwt->generateToken(['sub' => 1, 'exp' => time() + 3600]);
+$payload = $jwt->verifyToken($token);   // array|null — null = invalid
+$payload = Jwt::getPayload($token);     // array|null — no verification
+```
+
+---
+
+## Hashing — Webrium\Hash
+
+```php
+use Webrium\Hash;
+
+Hash::make('password')                  // bcrypt default
+Hash::make('password', PASSWORD_ARGON2ID)
+Hash::bcrypt('password', cost: 10)
+Hash::argon2i('password')
+Hash::argon2id('password')
+
+Hash::check('password', $hash)         // bool
+Hash::checkAndRehash('pw', $hash)      // ['verified'=>bool, 'hash'=>string|null]
+Hash::needsRehash($hash)               // bool
+
+Hash::digest($data, 'sha256')          // generic hash
+Hash::sha256($data)
+Hash::sha512($data)
+Hash::md5($data)
+Hash::hmac($data, $key, 'sha256')
+Hash::verifyHmac($data, $hmac, $key)   // bool — timing-safe
+Hash::equals($known, $user)            // bool — timing-safe
+
+Hash::random(32)                       // random hex string
+Hash::token(64)                        // secure URL-safe token
+Hash::uuid()                           // UUID v4
+Hash::unique('prefix')                 // unique hash from time+random
+Hash::file('/path/to/file')            // file hash
+```
+
+---
+
+## Session — Webrium\Session
+
+```php
+use Webrium\Session;
+
+Session::start();
+Session::set('key', 'value');
+Session::set(['key1' => 'v1', 'key2' => 'v2']);
+Session::get('key', 'default');
+Session::has('key');               // bool
+Session::exists('key');            // bool (not null)
+Session::all();                    // array
+Session::forget('key');            // or array of keys
+Session::pull('key', 'default');   // get + remove
+Session::push('list', $item);      // append to session array
+Session::flash('msg', 'Done!');    // available next request only
+Session::getFlash('msg');
+Session::regenerate();             // security: new session ID
+Session::destroy();
+Session::flush();                  // clear data, keep session
+Session::increment('counter');
+Session::decrement('counter');
+Session::setLifetime(3600);
+```
+
+---
+
+## Header — Webrium\Header
+
+```php
+use Webrium\Header;
+
+Header::get('Authorization', null);
+Header::has('X-Api-Key');
+Header::all();                         // array of all request headers
+Header::getBearerToken();              // string|null
+Header::getBasicAuth();                // ['username'=>..,'password'=>..] | null
+Header::getApiKey('X-API-Key');        // string|null
+
+Header::set('X-Custom', 'value');
+Header::setMultiple(['X-A' => '1', 'X-B' => '2']);
+Header::json();                        // set Content-Type application/json
+Header::html();
+Header::text();
+Header::xml();
+Header::status(201);
+Header::redirect('/path', 302);        // sets Location + exits
+Header::download('file.csv');
+Header::noCache();
+Header::cache(3600);
+Header::security();                    // sets HSTS, nosniff, XSS protection
+Header::respond($data, 200);           // JSON encode array + exit (never returns)
+```
+
+---
+
+## CORS — Webrium\App
+
+```php
+// Simple — before App::run()
+App::enableCors(['https://app.example.com', 'https://admin.example.com']);
+
+// Full config
+App::configureCors([
+    'allowed_origins'   => ['https://app.example.com'],
+    'allowed_methods'   => ['GET', 'POST', 'PUT', 'DELETE'],
+    'allowed_headers'   => ['Content-Type', 'Authorization'],
+    'allow_credentials' => true,
+    'max_age'           => 86400,
+]);
+
+// Strict middleware (rejects disallowed origins with 403)
+App::corsMiddleware(['https://app.example.com']);
+
+App::isOriginAllowed('https://app.example.com'); // bool
+```
+
+---
+
+## HttpClient — Webrium\HttpClient
+
+```php
+use Webrium\HttpClient;
+
+$client = new HttpClient('https://api.example.com');
+// or
+$client = HttpClient::make('https://api.example.com');
+
+// Requests
+$res = $client->get('/users', ['page' => 1]);
+$res = $client->post('/users', ['name' => 'James']);
+$res = $client->put('/users/1', ['name' => 'James']);
+$res = $client->patch('/users/1', ['name' => 'James']);
+$res = $client->delete('/users/1');
+$res = $client->asJson('POST', '/users', ['name' => 'James']);
+$res = $client->asForm('/upload', ['file' => 'data']);
+
+// Fluent modifiers (chainable, before request method)
+$client
+    ->withHeaders(['X-App' => 'myapp'])
+    ->withHeader('Accept', 'application/json')
+    ->withToken('bearer-token')          // sets Authorization: Bearer ...
+    ->withBasicAuth('user', 'pass')
+    ->withQuery(['locale' => 'en'])
+    ->withBody($rawBody)
+    ->timeout(10)
+    ->withoutVerifying()                 // disable SSL verify
+    ->withRedirects(true, 5)
+    ->withUserAgent('MyBot/1.0')
+    ->get('/path');
+
+// HttpResponse methods
+$res->body();           // raw string
+$res->json();           // decoded array (assoc)
+$res->json(false);      // decoded object
+$res->status();         // int
+$res->header('X-Key');  // string|null
+$res->headers();        // array
+
+$res->successful();     // 200–299
+$res->ok();             // 200
+$res->redirect();       // 300–399
+$res->clientError();    // 400–499
+$res->serverError();    // 500–599
+$res->failed();         // not successful
+
+$res->throw();          // throws on 4xx/5xx
+$res->onSuccess(fn($r) => ...);
+$res->onError(fn($r) => ...);
+```
+
+---
+
+## Url — Webrium\Url
+
+```php
+use Webrium\Url;
+
+Url::method()          // GET POST PUT PATCH DELETE ...
+Url::uri()             // /path/to/page (no query string)
+Url::uri(true)         // /path/to/page?foo=bar
+Url::full()            // https://example.com/path?foo=bar
+Url::current()         // https://example.com/path
+Url::home()            // https://example.com
+Url::base()            // https://example.com (+ subdir if any)
+Url::to('products')    // https://example.com/products
+Url::segments()        // ['products', '42']
+Url::segment(0)        // 'products'
+Url::queryString()     // 'foo=bar&baz=1'
+Url::scheme()          // 'http' or 'https'
+Url::scheme(true)      // 'http://' or 'https://'
+Url::isSecure()        // bool
+Url::domain()          // 'example.com'
+Url::clientIp()        // proxy-aware client IP
+Url::serverIp()
+Url::isAjax()          // bool — XMLHttpRequest header
+Url::isMobile()        // bool — UA sniff
+Url::userAgent()       // string
+Url::referer()         // string|null
+Url::refererDomain()   // string|null
+Url::isRefererFrom('example.com')    // bool (www-agnostic)
+Url::isInternalReferer()             // bool
+Url::origin()          // string|null
+Url::originDomain()    // string|null
+Url::isSameOrigin()    // bool
+Url::isFromAllowedDomain(['a.com', 'b.com']) // bool
+Url::server('KEY', 'default')        // $_SERVER accessor
+Url::is('products/*')  // bool — wildcard pattern match
+Url::parse('https://example.com/path?q=1') // ['scheme','host','port','path','query','fragment']
+Url::build(['scheme'=>'https','host'=>'example.com','path'=>'/']) // string
+Url::withQuery(['page'=>2], $url)    // add/overwrite query params
+Url::withoutQuery(['token'], $url)   // remove query params
+Url::removeTrailingSlash('/path/')   // '/path'
+Url::addTrailingSlash('/path')       // '/path/'
+Url::hasTrailingSlash('/path/')      // bool
+Url::previous()        // referer or base url
+Url::reset()           // clear internal cache (useful in tests)
+```
+
+---
+
+## App helpers
+
+```php
+App::initialize(__DIR__);    // must be first call
+App::run();                  // start debug + dispatch router (always last)
+App::env('KEY', 'default')   // read .env file
+App::setLocale('fa');
+App::getLocale();
+App::trans('file.key', ['name' => 'James']); // i18n
+App::disableCache();
+```
+
+Global helper functions (auto-loaded after App::initialize):
+```php
+input('key', 'default')
+respond($data, 200)      // never returns
+redirect('/url', 303)    // never returns
+back()                   // redirect to referer, never returns
+url('products/list')     // absolute URL
+current_url()
+route('name', ['id'=>1])
+env('KEY', 'default')
+lang('file.key', ['name'=>'James'])
+public_path('img/logo.png')
+app_path('Models/User.php')
+storage_path('uploads/')
+root_path('config.php')
+old('field', '')         // repopulate form after failed validation
+errors('field')          // flash errors from previous request
+message()                // flash message
+```
+
+---
+
+## Middleware
+
+Middleware must return bool. False → 403 Forbidden.
+
+```php
+// closure
+$auth = function(): bool {
+    return Header::getBearerToken() !== null;
+};
+
+// global function name (string)
+function auth(): bool { return isset($_SESSION['user']); }
+Route::group(['middleware' => 'auth'], fn() => ...);
+
+// class with handle() method
+class AuthMiddleware {
+    public function handle(): bool { return ...; }
+}
+Route::group(['middleware' => 'AuthMiddleware'], fn() => ...);
+
+// Class@method string
+Route::group(['middleware' => 'AuthMiddleware@check'], fn() => ...);
+
+// bool literal (testing)
+Route::group(['middleware' => true], fn() => ...);
+
+// multiple middleware as array
+Route::group(['middleware' => [$auth, 'rateLimitMiddleware']], fn() => ...);
+```
+
+---
+
+## Directory — Webrium\Directory (path registry)
+
+```php
+use Webrium\Directory;
+Directory::set('logs', __DIR__ . '/storage/logs');
+Directory::path('logs');   // '/absolute/path/to/storage/logs'
+```
+
+---
+
+## Typical patterns
+
+**Validated API endpoint:**
+```php
+Route::post('/register', function() {
+    $v = new Validator(input());
+    $v->field('email')->required()->email();
+    $v->field('password')->required()->min(8);
+    if ($v->fails()) return respond(['errors' => $v->getErrors()], 422);
+    // ...
+    return respond(['success' => true], 201);
+});
+```
+
+**JWT-protected group:**
+```php
+$jwt  = new Jwt('secret');
+$auth = function() use ($jwt): bool {
+    $token = Header::getBearerToken();
+    return $token !== null && $jwt->verifyToken($token) !== null;
+};
+Route::group(['prefix' => 'api', 'middleware' => $auth], function() use ($jwt) {
+    Route::get('/me', function() use ($jwt) {
+        $payload = $jwt->verifyToken(Header::getBearerToken());
+        return ['user_id' => $payload['sub']];
+    });
+});
+```
+
+**External HTTP call:**
+```php
+$res = HttpClient::make('https://api.github.com')
+    ->withHeader('Accept', 'application/vnd.github.v3+json')
+    ->get('/users/octocat');
+
+if ($res->successful()) {
+    return $res->json();
+}
+return respond(['error' => 'upstream failed'], 502);
+```
