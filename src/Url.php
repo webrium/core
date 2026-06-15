@@ -702,10 +702,16 @@ class Url
     // -------------------------------------------------------------------------
 
     /**
-     * Get a value from the current request input (GET params or POST/PUT/DELETE body).
+     * Get a value from the current request input (GET params or POST/PUT/PATCH/DELETE body).
      *
-     * Parses the body once per request and caches the result. Supports both
-     * application/json and application/x-www-form-urlencoded bodies.
+     * Parses the body once per request and caches the result. Supports
+     * application/json and application/x-www-form-urlencoded bodies for
+     * POST, PUT, PATCH and DELETE requests.
+     *
+     * Note: multipart/form-data is only populated by PHP into $_POST for
+     * POST requests. For PUT/PATCH/DELETE with multipart/form-data, use
+     * method spoofing (e.g. POST with a _method field) or a dedicated
+     * upload handler instead.
      *
      * @param  string|null $key     Input key. Pass null to return all input as an array.
      * @param  mixed       $default Returned when the key is absent.
@@ -736,8 +742,13 @@ class Url
                     } else {
                         $requestData = $decoded ?? [];
                     }
-                } else {
+                } elseif ($method === 'POST') {
                     $requestData = $_POST;
+                } else {
+                    // PHP does not populate $_POST for PUT/PATCH/DELETE requests,
+                    // so urlencoded bodies must be parsed manually from the raw stream.
+                    $raw = file_get_contents('php://input');
+                    parse_str($raw, $requestData);
                 }
             }
         }
