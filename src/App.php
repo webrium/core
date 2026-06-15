@@ -76,7 +76,10 @@ class App
     {
         self::setRootPath($dir);
         self::loadHelperFunctions();
-        Url::enforce();
+
+        if (PHP_SAPI !== 'cli') {
+            Url::enforce();
+        }
     }
 
     /**
