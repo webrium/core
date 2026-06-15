@@ -12,6 +12,7 @@
     <testsuites>
         <testsuite name="Your tests">
             <file>./tests/FileTest.php</file> 
+            <file>./tests/ValidatorTest.php</file> 
 
         </testsuite>
     </testsuites>

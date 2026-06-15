@@ -52,12 +52,16 @@ class Validator
      */
     private const MAX_REGEX_EXECUTION_TIME = 2;
 
+    /**
+     * Path to the package's default validation language files
+     */
+    private const DEFAULT_MESSAGES_PATH = __DIR__ . '/../resources/lang';
+
 
     /**
      * Create a new Validator instance.
      *
      * @param array|null $data Form data to validate. If null, uses global input()
-     * @throws \Exception If validation messages file is not found
      */
     public function __construct(?array $data = null)
     {
@@ -70,8 +74,12 @@ class Validator
      * Load validation error messages from locale file.
      * Messages are cached statically to avoid multiple file reads.
      *
+     * Resolution order:
+     * 1. Application-level translation file at langs/{locale}/validation.php
+     * 2. Package default translation file for the active locale
+     * 3. Package default translation file for the "en" locale
+     *
      * @return void
-     * @throws \Exception If validation messages file doesn't exist
      */
     private function loadMessages(): void
     {
@@ -79,14 +87,19 @@ class Validator
             return;
         }
 
-        $locale       = App::getLocale();
-        $messagesPath = Directory::path('langs') . '/' . $locale . '/validation.php';
+        $locale = App::getLocale();
 
-        if (!file_exists($messagesPath)) {
-            throw new \Exception("Validation messages file not found: '$messagesPath'");
+        $langsPath = Directory::path('langs');
+        $packageMessagesPath = self::DEFAULT_MESSAGES_PATH . '/' . $locale . '/validation.php';
+        $fallbackMessagesPath = self::DEFAULT_MESSAGES_PATH . '/en/validation.php';
+
+        if ($langsPath !== null && file_exists($langsPath . '/' . $locale . '/validation.php')) {
+            self::$messages = include $langsPath . '/' . $locale . '/validation.php';
+        } elseif (file_exists($packageMessagesPath)) {
+            self::$messages = include $packageMessagesPath;
+        } else {
+            self::$messages = include $fallbackMessagesPath;
         }
-
-        self::$messages = include $messagesPath;
     }
 
 
@@ -1036,19 +1049,24 @@ class Validator
         $type = gettype($value);
         $isValid = false;
 
+        $messageKey = ['between', 'string'];
+
         if ($type === 'string') {
             $length = mb_strlen($value);
             $isValid = $length >= $min && $length <= $max;
+            $messageKey = ['between', 'string'];
         } elseif (is_numeric($value)) {
             $isValid = $value >= $min && $value <= $max;
+            $messageKey = ['between', 'numeric'];
         } elseif (is_array($value)) {
             $count = count($value);
             $isValid = $count >= $min && $count <= $max;
+            $messageKey = ['between', 'array'];
         }
 
         return [
             'valid' => $isValid,
-            'messageKey' => 'between',
+            'messageKey' => $messageKey,
             'replacements' => ['min' => $min, 'max' => $max],
         ];
     }
