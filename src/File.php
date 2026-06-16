@@ -27,7 +27,6 @@ use RecursiveIteratorIterator;
  * - File hashing and metadata retrieval
  *
  * @package Webrium
- * @version 2.1.0
  */
 class File
 {
@@ -339,51 +338,8 @@ class File
         return $deleted;
     }
 
-    /**
-     * Recursively delete a directory and its contents
-     *
-     * @param string $dir The path to the directory
-     * @return bool True if the directory was successfully deleted, false otherwise
-     */
-    public static function deleteDirectory(string $dir): bool
-    {
-        if (!self::isDirectory($dir)) {
-            return false;
-        }
 
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
-            RecursiveIteratorIterator::CHILD_FIRST
-        );
-
-        foreach ($iterator as $file) {
-            if ($file->isDir()) {
-                rmdir($file->getRealPath());
-            } else {
-                unlink($file->getRealPath());
-            }
-        }
-
-        return rmdir($dir);
-    }
-
-
-    /**
-     * Create a directory
-     *
-     * @param string $path The path to the directory
-     * @param int $mode The permissions (default: 0755)
-     * @param bool $recursive Create parent directories if needed (default: true)
-     * @return bool True on success, false on failure
-     */
-    public static function makeDirectory(string $path, int $mode = 0755, bool $recursive = true): bool
-    {
-        if (self::isDirectory($path)) {
-            return true;
-        }
-        return mkdir($path, $mode, $recursive);
-    }
-
+    
     /**
      * Get all files in a directory
      *

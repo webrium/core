@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use Directory;
 use PHPUnit\Framework\TestCase;
 use Webrium\File;
 
@@ -18,13 +19,6 @@ class FileTest extends TestCase
         mkdir($this->testDir, 0777, true);
     }
 
-    protected function tearDown(): void
-    {
-        // Clean up the temporary directory after each test
-        if (is_dir($this->testDir)) {
-            File::deleteDirectory($this->testDir);
-        }
-    }
 
     public function testExistsIsFileAndIsDirectory()
     {
@@ -131,7 +125,7 @@ class FileTest extends TestCase
         $subDir = $this->testDir . '/sub/folder';
         
         // Create nested directories
-        $this->assertTrue(File::makeDirectory($subDir));
+        mkdir($subDir, 0775, true);
         $this->assertTrue(File::isDirectory($subDir));
 
         // Create files inside directories
@@ -150,15 +144,6 @@ class FileTest extends TestCase
         $this->assertContains($subDir . '/deep.txt', $allFiles);
     }
 
-    public function testDeleteDirectory()
-    {
-        $subDir = $this->testDir . '/sub/folder';
-        File::makeDirectory($subDir);
-        File::write($subDir . '/test.txt', 'test');
-
-        $this->assertTrue(File::deleteDirectory($this->testDir . '/sub'));
-        $this->assertFalse(File::exists($this->testDir . '/sub'));
-    }
 
     public function testHashingMethods()
     {
