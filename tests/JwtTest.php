@@ -198,6 +198,36 @@ class JwtTest extends TestCase
         $this->assertNull($this->jwt->verifyToken($token));
     }
 
+    public function testTokenSignedWithLowerAlgorithmIsRejected(): void
+    {
+        // The reverse direction: an HS256 token must not verify under HS384,
+        // even though both share the same secret.
+        $token = $this->craftToken(['sub' => 1], self::SECRET, 'HS256');
+        $jwt   = new Jwt(self::SECRET, 'HS384');
+
+        $this->assertNull($jwt->verifyToken($token));
+    }
+
+    public function testTruncatedSignatureIsRejected(): void
+    {
+        $token = $this->jwt->generateToken(['sub' => 1], 3600);
+        [$header, $body, $sig] = explode('.', $token);
+
+        $this->assertNull($this->jwt->verifyToken("$header.$body." . substr($sig, 0, -4)));
+    }
+
+    public function testZeroedSignatureOfCorrectLengthIsRejected(): void
+    {
+        // A signature that is well-formed base64url and the right byte length,
+        // but all zero bytes, must still fail the constant-time comparison.
+        $token = $this->jwt->generateToken(['sub' => 1], 3600);
+        [$header, $body] = explode('.', $token);
+
+        $zeroed = rtrim(strtr(base64_encode(str_repeat("\x00", 32)), '+/', '-_'), '=');
+
+        $this->assertNull($this->jwt->verifyToken("$header.$body.$zeroed"));
+    }
+
     // =========================================================================
     // 5. Algorithm-substitution attacks
     // =========================================================================
@@ -212,6 +242,20 @@ class JwtTest extends TestCase
 
         // Unsigned token with empty signature.
         $this->assertNull($this->jwt->verifyToken("$header.$body."));
+    }
+
+    public function testAlgNoneAttackWithForgedSignatureIsRejected(): void
+    {
+        // A more deliberate variant: the attacker sets alg to "none" but also
+        // supplies a non-empty signature. The header is ignored, so the forged
+        // signature is checked against the real algorithm and fails.
+        $encode = static fn (string $d): string =>
+            rtrim(strtr(base64_encode($d), '+/', '-_'), '=');
+
+        $header = $encode(json_encode(['typ' => 'JWT', 'alg' => 'none']));
+        $body   = $encode(json_encode(['sub' => 1, 'role' => 'admin']));
+
+        $this->assertNull($this->jwt->verifyToken("$header.$body.deadbeef"));
     }
 
     public function testHeaderAlgorithmIsIgnoredDuringVerification(): void
@@ -299,6 +343,39 @@ class JwtTest extends TestCase
         $sig    = $encode(hash_hmac('sha256', "$header.$body", self::SECRET, true));
 
         $this->assertNull($this->jwt->verifyToken("$header.$body.$sig"));
+    }
+
+    /**
+     * A payload that is valid JSON but not a JSON object (e.g. a bare number,
+     * string, or null) must be rejected, since claims must be a structured set.
+     *
+     * @dataProvider nonObjectPayloadProvider
+     */
+    public function testNonObjectPayloadIsRejected(string $rawJson): void
+    {
+        $encode = static fn (string $d): string =>
+            rtrim(strtr(base64_encode($d), '+/', '-_'), '=');
+
+        $header = $encode(json_encode(['typ' => 'JWT', 'alg' => 'HS256']));
+        $body   = $encode($rawJson);
+        $sig    = $encode(hash_hmac('sha256', "$header.$body", self::SECRET, true));
+
+        $this->assertNull($this->jwt->verifyToken("$header.$body.$sig"));
+    }
+
+    public static function nonObjectPayloadProvider(): array
+    {
+        return [
+            'number' => ['123'],
+            'string' => ['"hello"'],
+            'null'   => ['null'],
+            'bool'   => ['true'],
+        ];
+    }
+
+    public function testTokenWithExtraSegmentsIsRejected(): void
+    {
+        $this->assertNull($this->jwt->verifyToken('a.b.c.d'));
     }
 
     // =========================================================================
