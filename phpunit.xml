@@ -14,6 +14,7 @@
             <file>./tests/FileTest.php</file> 
             <file>./tests/ValidatorTest.php</file> 
             <file>./tests/UrlTest.php</file> 
+            <file>./tests/HashTest.php</file> 
 
         </testsuite>
     </testsuites>

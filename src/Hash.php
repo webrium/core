@@ -20,7 +20,6 @@ namespace Webrium;
  * - Hash comparison (timing-safe)
  * 
  * @package Webrium
- * @version 2.0.0
  */
 class Hash
 {
@@ -195,7 +194,10 @@ class Hash
     }
 
     /**
-     * Create an MD5 hash
+     * Create an MD5 hash.
+     *
+     * For checksums and non-security identifiers only. MD5 is cryptographically
+     * broken; never use it for passwords (use make()) or signatures (use hmac()).
      *
      * @param string $data The data to hash
      * @param bool $binary Return binary output
@@ -207,7 +209,11 @@ class Hash
     }
 
     /**
-     * Create a SHA-1 hash
+     * Create a SHA-1 hash.
+     *
+     * For checksums and non-security identifiers only. SHA-1 is no longer
+     * collision-resistant; never use it for passwords (use make()) or
+     * signatures (use hmac()).
      *
      * @param string $data The data to hash
      * @param bool $binary Return binary output
@@ -284,17 +290,25 @@ class Hash
     }
 
     /**
-     * Generate a random hash (useful for tokens)
+     * Generate a random hexadecimal string of the requested length.
      *
-     * @param int $length The desired length of the hash
-     * @param string $algorithm The hash algorithm to use
-     * @return string A random hash
+     * The result is cryptographically secure and exactly $length characters
+     * long for any positive length, independent of any hash algorithm.
+     *
+     * @param int $length The desired length of the output string (in characters)
+     * @return string A random hexadecimal string
+     * @throws \InvalidArgumentException If $length is not positive
      */
-    public static function random(int $length = 32, string $algorithm = 'sha256'): string
+    public static function random(int $length = 32): string
     {
-        $bytes = random_bytes(max(16, ceil($length / 2)));
-        $hash = hash($algorithm, $bytes);
-        return substr($hash, 0, $length);
+        if ($length < 1) {
+            throw new \InvalidArgumentException('Length must be a positive integer.');
+        }
+
+        // Two hex characters per byte; request enough bytes to cover odd lengths.
+        $bytes = random_bytes((int) ceil($length / 2));
+
+        return substr(bin2hex($bytes), 0, $length);
     }
 
     /**
@@ -404,15 +418,18 @@ class Hash
     }
 
     /**
-     * Generate a secure token (URL-safe)
+     * Generate a secure random token as a hexadecimal string.
      *
-     * @param int $length The desired length of the token
+     * The output is cryptographically secure, URL-safe (hex characters only),
+     * and exactly $length characters long.
+     *
+     * @param int $length The desired length of the token (in characters)
      * @return string A secure random token
+     * @throws \InvalidArgumentException If $length is not positive
      */
     public static function token(int $length = 32): string
     {
-        $bytes = random_bytes(max(16, $length));
-        return substr(bin2hex($bytes), 0, $length);
+        return self::random($length);
     }
 
     /**
@@ -433,7 +450,11 @@ class Hash
     }
 
     /**
-     * Create a hash with salt
+     * Create a salted hash.
+     *
+     * Uses HMAC with the salt as the key, which avoids length-extension
+     * weaknesses and salt/data boundary ambiguity that plain concatenation
+     * would introduce.
      *
      * @param string $data The data to hash
      * @param string $salt The salt to add
@@ -442,7 +463,7 @@ class Hash
      */
     public static function salted(string $data, string $salt, string $algorithm = 'sha256'): string
     {
-        return hash($algorithm, $data . $salt);
+        return self::hmac($data, $salt, $algorithm);
     }
 
     /**
