@@ -17,6 +17,8 @@
             <file>./tests/HashTest.php</file> 
             <file>./tests/JwtTest.php</file> 
             <file>./tests/SessionTest.php</file> 
+            <file>./tests/DirectoryTest.php</file> 
+            <file>./tests/HelpersTest.php</file> 
 
         </testsuite>
     </testsuites>
