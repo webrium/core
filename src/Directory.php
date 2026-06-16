@@ -23,7 +23,6 @@ use Webrium\App;
  * - Bulk directory operations
  * 
  * @package Webrium
- * @version 2.0.0
  */
 class Directory
 {
@@ -93,7 +92,7 @@ class Directory
      * Get the absolute path of a registered directory
      *
      * @param string $name The directory identifier
-     * @param string $append Optional path to append
+     * @param string $append Optional path to append (sanitized to prevent traversal)
      * @return string|null The absolute path, or null if not found
      */
     public static function path(string $name, string $append = ''): ?string
@@ -111,9 +110,69 @@ class Directory
 
         if ($append !== '') {
             $path .= '/' . ltrim($append, '/\\');
+            $path = self::sanitizePath($path);
         }
 
         return $path;
+    }
+
+    /**
+     * Sanitize a path to prevent directory traversal.
+     *
+     * Resolves ".." and "." segments without touching the filesystem, then
+     * verifies the result still falls within the application root.
+     *
+     * @param string $path The absolute path to sanitize
+     * @return string The sanitized absolute path
+     * @throws \InvalidArgumentException If the path escapes the application root
+     */
+    private static function sanitizePath(string $path): string
+    {
+        $root = App::getRootPath();
+
+        // Normalize separators.
+        $normalized = str_replace('\\', '/', $path);
+
+        // Resolve "." and ".." without filesystem access.
+        $parts = [];
+        foreach (explode('/', $normalized) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+            if ($segment === '..') {
+                array_pop($parts);
+            } else {
+                $parts[] = $segment;
+            }
+        }
+
+        $resolved = '/' . implode('/', $parts);
+
+        // The resolved path must start with the root.
+        if (!str_starts_with($resolved, $root)) {
+            throw new \InvalidArgumentException('Path traversal detected: the path escapes the application root.');
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * Check whether an absolute path is inside the application root.
+     *
+     * @param string $path The absolute path to check
+     * @return bool True if the path is within the root
+     */
+    private static function isInsideRoot(string $path): bool
+    {
+        $root = App::getRootPath();
+        $real = realpath($path);
+
+        // realpath returns false for non-existent paths.
+        if ($real === false) {
+            return false;
+        }
+
+        return str_starts_with($real, $root);
     }
 
     /**
@@ -193,7 +252,7 @@ class Directory
     /**
      * Create a directory if it doesn't exist
      *
-     * @param string $path The absolute path or directory name
+     * @param string $path The absolute path or registered directory name
      * @param int $permissions The directory permissions (default: 0755)
      * @param bool $recursive Create parent directories if needed
      * @return bool True on success, false on failure
@@ -209,7 +268,7 @@ class Directory
             return true;
         }
 
-        return @mkdir($path, $permissions, $recursive);
+        return mkdir($path, $permissions, $recursive);
     }
 
     /**
@@ -423,7 +482,10 @@ class Directory
     }
 
     /**
-     * Delete a directory and its contents
+     * Delete a directory and its contents.
+     *
+     * The target must be inside the application root to prevent accidental
+     * deletion of system paths. Symlinks are removed without following them.
      *
      * @param string $name The directory identifier or absolute path
      * @return bool True on success, false on failure
@@ -436,26 +498,45 @@ class Directory
             return false;
         }
 
+        if (!self::isInsideRoot($path)) {
+            return false;
+        }
+
         return self::recursiveDelete($path);
     }
 
     /**
-     * Recursively delete a directory
+     * Recursively delete a directory using a depth-first iterator.
+     *
+     * Symlinks are unlinked directly (the target is never followed), so a
+     * symlink pointing outside the tree will not cause collateral deletion.
      *
      * @param string $path The absolute path
      * @return bool True on success, false on failure
      */
     private static function recursiveDelete(string $path): bool
     {
-        $files = array_diff(scandir($path), ['.', '..']);
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($path, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
 
-        foreach ($files as $file) {
-            $filePath = $path . '/' . $file;
-            
-            if (is_dir($filePath)) {
-                self::recursiveDelete($filePath);
+        foreach ($iterator as $item) {
+            $itemPath = $item->getPathname();
+
+            if ($item->isLink()) {
+                // Remove the symlink itself, never its target.
+                if (!unlink($itemPath)) {
+                    return false;
+                }
+            } elseif ($item->isDir()) {
+                if (!rmdir($itemPath)) {
+                    return false;
+                }
             } else {
-                unlink($filePath);
+                if (!unlink($itemPath)) {
+                    return false;
+                }
             }
         }
 
@@ -463,7 +544,10 @@ class Directory
     }
 
     /**
-     * Empty a directory (delete contents but keep directory)
+     * Empty a directory (delete contents but keep directory).
+     *
+     * Like delete(), the target must be inside the application root and
+     * symlinks are not followed.
      *
      * @param string $name The directory identifier
      * @return bool True on success, false on failure
@@ -476,15 +560,22 @@ class Directory
             return false;
         }
 
-        $files = array_diff(scandir($path), ['.', '..']);
+        if (!self::isInsideRoot($path)) {
+            return false;
+        }
 
-        foreach ($files as $file) {
-            $filePath = $path . '/' . $file;
-            
-            if (is_dir($filePath)) {
-                self::recursiveDelete($filePath);
-            } else {
-                unlink($filePath);
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($path, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            $itemPath = $item->getPathname();
+
+            if ($item->isLink() || $item->isFile()) {
+                unlink($itemPath);
+            } elseif ($item->isDir()) {
+                rmdir($itemPath);
             }
         }
 

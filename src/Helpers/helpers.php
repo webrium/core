@@ -41,6 +41,11 @@ function current_url(): string
  */
 function redirect(string $url, int $statusCode = 303): never
 {
+    // Reject URLs containing line breaks to prevent header injection.
+    if (preg_match('/[\r\n]/', $url)) {
+        throw new \InvalidArgumentException('Redirect URL must not contain line breaks.');
+    }
+
     header('Location: ' . $url, true, $statusCode);
     exit;
 }
@@ -56,8 +61,7 @@ function redirect(string $url, int $statusCode = 303): never
 function back(): never
 {
     $url = Url::previous();
-    header('Location: ' . $url, true, 303);
-    exit;
+    redirect($url, 303);
 }
 
 
@@ -144,7 +148,7 @@ function input(?string $name = null, mixed $default = null): mixed
  */
 function public_path(string $path = ''): string
 {
-    return Directory::path('public') . ($path !== '' ? "/$path" : '');
+    return Directory::path('public', $path) ?? '';
 }
 
 
@@ -156,19 +160,43 @@ function public_path(string $path = ''): string
  */
 function app_path(string $path = ''): string
 {
-    return Directory::path('app') . ($path !== '' ? "/$path" : '');
+    return Directory::path('app', $path) ?? '';
 }
 
 
 /**
- * Get the absolute path to a file within the application storage directory.
+ * Get the absolute path to a file within the storage directory.
  *
  * @param  string $path  Relative path inside the storage directory.
  * @return string        Absolute filesystem path.
  */
 function storage_path(string $path = ''): string
 {
-    return Directory::path('storage_app') . ($path !== '' ? "/$path" : '');
+    return Directory::path('storage', $path) ?? '';
+}
+
+
+/**
+ * Get the absolute path to a file within the config directory.
+ *
+ * @param  string $path  Relative path inside the config directory.
+ * @return string        Absolute filesystem path.
+ */
+function config_path(string $path = ''): string
+{
+    return Directory::path('config', $path) ?? '';
+}
+
+
+/**
+ * Get the absolute path to a file within the views directory.
+ *
+ * @param  string $path  Relative path inside the views directory.
+ * @return string        Absolute filesystem path.
+ */
+function resource_path(string $path = ''): string
+{
+    return Directory::path('views', $path) ?? '';
 }
 
 
@@ -180,7 +208,7 @@ function storage_path(string $path = ''): string
  */
 function root_path(string $path = ''): string
 {
-    return App::getRootPath() . ($path !== '' ? "/$path" : '');
+    return App::getRootPath() . ($path !== '' ? '/' . ltrim($path, '/\\') : '');
 }
 
 
@@ -204,7 +232,7 @@ function lang(string $key, array $replacements = []): string
  * @param  mixed  $default  Default value if the variable is not set.
  * @return mixed            Environment variable value or default.
  */
-function env(string $name, mixed $default = false): mixed
+function env(string $name, mixed $default = null): mixed
 {
     return App::env($name, $default);
 }
