@@ -89,7 +89,7 @@ class App
      */
     private static function loadHelperFunctions(): void
     {
-        Kernel::runOnce(__DIR__ . '/lib/Helper.php');
+        Kernel::runOnce(__DIR__ . '/Helpers/helpers.php');
     }
 
     /**
