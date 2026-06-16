@@ -107,17 +107,55 @@ class Session
     }
 
     /**
-     * Get or set the session ID
-     * 
+     * Get or set the session ID.
+     *
+     * Setting an ID is only permitted before the session has started, and the
+     * provided value must match the configured session id format. This prevents
+     * an attacker-supplied identifier from being accepted (session fixation).
+     *
      * @param string|null $id Optional session ID to set
      * @return string The current session ID
+     * @throws \RuntimeException If setting an ID after the session has started
+     * @throws \InvalidArgumentException If the ID has an invalid format
      */
     public static function id(?string $id = null): string
     {
         if ($id !== null) {
+            if (self::isStarted()) {
+                throw new \RuntimeException('Cannot set session ID after the session has started.');
+            }
+
+            if (!self::isValidId($id)) {
+                throw new \InvalidArgumentException('Invalid session ID format.');
+            }
+
             session_id($id);
         }
+
         return session_id();
+    }
+
+    /**
+     * Validate a session ID against the characters and length allowed by the
+     * current session id configuration.
+     *
+     * @param string $id The session ID to validate
+     * @return bool True if the ID is well-formed
+     */
+    private static function isValidId(string $id): bool
+    {
+        $bitsPerChar = (int) (ini_get('session.sid_bits_per_character') ?: 4);
+        $length      = (int) (ini_get('session.sid_length') ?: 32);
+
+        $charset = match ($bitsPerChar) {
+            6 => 'A-Za-z0-9,\-',
+            5 => 'a-v0-9',
+            default => 'a-f0-9',
+        };
+
+        return $id !== ''
+            && strlen($id) <= $length
+            && preg_match('/^[' . $charset . ']+$/', $id) === 1;
     }
 
     /**
@@ -147,6 +185,59 @@ class Session
     {
         self::start();
         return session_regenerate_id($deleteOldSession);
+    }
+
+    /**
+     * Session fingerprint key.
+     *
+     * @var string
+     */
+    private const FINGERPRINT_KEY = '_fingerprint';
+
+    /**
+     * Bind the current session to a fingerprint of the request.
+     *
+     * Stores a fingerprint derived from the client's User-Agent so it can be
+     * checked on later requests with verifyFingerprint(). Call this after
+     * authentication, alongside regenerate(), to make stolen session IDs
+     * harder to reuse from a different client.
+     *
+     * @return void
+     */
+    public static function bind(): void
+    {
+        self::start();
+        $_SESSION[self::FINGERPRINT_KEY] = self::fingerprint();
+    }
+
+    /**
+     * Verify the current request matches the bound session fingerprint.
+     *
+     * Returns true when no fingerprint has been set, so it is safe to call on
+     * sessions that were never bound. Returns false when a stored fingerprint
+     * does not match the current request.
+     *
+     * @return bool True if the session is unbound or the fingerprint matches
+     */
+    public static function verifyFingerprint(): bool
+    {
+        self::start();
+
+        if (!isset($_SESSION[self::FINGERPRINT_KEY])) {
+            return true;
+        }
+
+        return hash_equals($_SESSION[self::FINGERPRINT_KEY], self::fingerprint());
+    }
+
+    /**
+     * Compute a fingerprint for the current request.
+     *
+     * @return string The fingerprint hash
+     */
+    private static function fingerprint(): string
+    {
+        return hash('sha256', (string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));
     }
 
     /**
@@ -209,10 +300,14 @@ class Session
     }
 
     /**
-     * Check if a session variable exists
-     * 
+     * Check if a session variable exists.
+     *
+     * Reports whether the key is present, regardless of its value. A key whose
+     * value is null still counts as existing; use exists() to also require a
+     * non-null value.
+     *
      * @param string|array $key Single key or array of keys to check
-     * @return bool True if key exists, false otherwise
+     * @return bool True if the key (or all keys) exist, false otherwise
      */
     public static function has($key): bool
     {
@@ -220,14 +315,14 @@ class Session
 
         if (is_array($key)) {
             foreach ($key as $k) {
-                if (!isset($_SESSION[$k])) {
+                if (!array_key_exists($k, $_SESSION)) {
                     return false;
                 }
             }
             return true;
         }
 
-        return isset($_SESSION[$key]);
+        return array_key_exists($key, $_SESSION);
     }
 
     /**
@@ -288,7 +383,7 @@ class Session
         $keys = is_array($keys) ? $keys : [$keys];
 
         foreach ($keys as $key) {
-            if (isset($_SESSION[$key])) {
+            if (array_key_exists($key, $_SESSION)) {
                 unset($_SESSION[$key]);
                 $removed = true;
             }
@@ -438,18 +533,18 @@ class Session
         
         $_SESSION = [];
 
-        // Delete session cookie
+        // Delete session cookie, preserving its original attributes so the
+        // browser reliably matches and clears it.
         if (ini_get('session.use_cookies')) {
             $params = session_get_cookie_params();
-            setcookie(
-                session_name(),
-                '',
-                time() - 42000,
-                $params['path'],
-                $params['domain'],
-                $params['secure'],
-                $params['httponly']
-            );
+            setcookie(session_name(), '', [
+                'expires' => time() - 42000,
+                'path' => $params['path'],
+                'domain' => $params['domain'],
+                'secure' => $params['secure'],
+                'httponly' => $params['httponly'],
+                'samesite' => $params['samesite'] ?? 'Lax',
+            ]);
         }
 
         $result = session_destroy();
@@ -470,15 +565,32 @@ class Session
     }
 
     /**
-     * Set the session cookie lifetime
-     * 
+     * Set the session cookie lifetime.
+     *
+     * Must be called before the session is started, since the lifetime is
+     * applied when the session cookie is sent. Calling it after the session
+     * has started has no effect and raises a warning.
+     *
      * @param int $seconds Lifetime in seconds (0 = until browser closes)
-     * @return void
+     * @return bool True if the lifetime was applied, false if it was too late
      */
-    public static function setLifetime(int $seconds): void
+    public static function setLifetime(int $seconds): bool
     {
-        ini_set('session.cookie_lifetime', (string)$seconds);
-        ini_set('session.gc_maxlifetime', (string)$seconds);
+        if (self::isStarted()) {
+            trigger_error(
+                'Session::setLifetime() must be called before the session starts; ignoring.',
+                E_USER_WARNING
+            );
+            return false;
+        }
+
+        $params = session_get_cookie_params();
+        $params['lifetime'] = $seconds;
+        session_set_cookie_params($params);
+
+        ini_set('session.gc_maxlifetime', (string) $seconds);
+
+        return true;
     }
 
     /**
@@ -532,22 +644,61 @@ class Session
     }
 
     /**
-     * Set session cookie parameters
-     * 
-     * @param int $lifetime Cookie lifetime in seconds
+     * Set session cookie parameters with secure defaults.
+     *
+     * Must be called before the session is started to take effect. By default
+     * the cookie is HttpOnly, uses SameSite=Lax, and is marked Secure whenever
+     * the current request is over HTTPS.
+     *
+     * @param int $lifetime Cookie lifetime in seconds (0 = until browser closes)
      * @param string $path Cookie path
      * @param string $domain Cookie domain
-     * @param bool $secure Secure flag (HTTPS only)
+     * @param bool|null $secure Secure flag; null auto-detects HTTPS
      * @param bool $httponly HTTP only flag (no JavaScript access)
-     * @return void
+     * @param string $samesite SameSite policy: 'Lax', 'Strict', or 'None'
+     * @return bool True on success
      */
     public static function setCookieParams(
         int $lifetime = 0,
         string $path = '/',
         string $domain = '',
-        bool $secure = false,
-        bool $httponly = true
-    ): void {
-        session_set_cookie_params($lifetime, $path, $domain, $secure, $httponly);
+        ?bool $secure = null,
+        bool $httponly = true,
+        string $samesite = 'Lax'
+    ): bool {
+        if ($secure === null) {
+            $secure = self::isHttps();
+        }
+
+        return session_set_cookie_params([
+            'lifetime' => $lifetime,
+            'path' => $path,
+            'domain' => $domain,
+            'secure' => $secure,
+            'httponly' => $httponly,
+            'samesite' => $samesite,
+        ]);
+    }
+
+    /**
+     * Determine whether the current request is served over HTTPS.
+     *
+     * @return bool True if the connection is secure
+     */
+    private static function isHttps(): bool
+    {
+        if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') {
+            return true;
+        }
+
+        if (($_SERVER['SERVER_PORT'] ?? null) == 443) {
+            return true;
+        }
+
+        if (strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https') {
+            return true;
+        }
+
+        return false;
     }
 }
