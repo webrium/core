@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Webrium;
 
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-
 /**
  * File Manager Class
  *
@@ -254,7 +251,9 @@ class File
     }
 
     /**
-     * Prepend content to a file
+     * Prepend content to a file.
+     *
+     * Uses an exclusive lock to prevent data loss from concurrent writes.
      *
      * @param string $path The path to the file
      * @param string $content The content to prepend
@@ -262,8 +261,31 @@ class File
      */
     public static function prepend(string $path, string $content)
     {
-        $existing = self::read($path);
-        return self::write($path, $content . $existing);
+        if (!self::exists($path)) {
+            return self::write($path, $content);
+        }
+
+        $handle = fopen($path, 'c+');
+        if ($handle === false) {
+            return false;
+        }
+
+        if (!flock($handle, LOCK_EX)) {
+            fclose($handle);
+            return false;
+        }
+
+        $existing = stream_get_contents($handle);
+        $data = $content . $existing;
+
+        ftruncate($handle, 0);
+        rewind($handle);
+        $bytes = fwrite($handle, $data);
+
+        flock($handle, LOCK_UN);
+        fclose($handle);
+
+        return $bytes;
     }
 
     /**
@@ -339,7 +361,24 @@ class File
     }
 
 
-    
+    /**
+     * Create a directory
+     *
+     * @param string $path The path to the directory
+     * @param int $mode The permissions (default: 0755)
+     * @param bool $recursive Create parent directories if needed (default: true)
+     * @return bool True on success, false on failure
+     *
+     * @deprecated Use Directory::make() instead
+     */
+    public static function makeDirectory(string $path, int $mode = 0755, bool $recursive = true): bool
+    {
+        if (self::isDirectory($path)) {
+            return true;
+        }
+        return mkdir($path, $mode, $recursive);
+    }
+
     /**
      * Get all files in a directory
      *
@@ -388,7 +427,10 @@ class File
     }
 
     /**
-     * Stream a file with support for range requests (useful for video/audio)
+     * Stream a file with support for range requests (useful for video/audio).
+     *
+     * The optional download name is sanitized before being placed in the
+     * Content-Disposition header.
      *
      * @param string $filePath The path to the file
      * @param string|null $downloadName Optional download filename
@@ -403,12 +445,13 @@ class File
         }
 
         $fileSize = filesize($filePath);
-        $downloadName = $downloadName ?? basename($filePath);
+        $downloadName = self::sanitizeFilename($downloadName ?? basename($filePath));
         $mimeType = self::mimeType($filePath);
 
         // Set default headers
         header('Content-Type: ' . $mimeType);
         header('Accept-Ranges: bytes');
+        header('Content-Disposition: inline; filename="' . $downloadName . '"');
 
         // Handle range requests
         if (isset($_SERVER['HTTP_RANGE'])) {
@@ -479,7 +522,32 @@ class File
     }
 
     /**
-     * Download a file with proper headers
+     * Sanitize a filename for use in HTTP headers.
+     *
+     * Strips path separators, control characters, and null bytes to prevent
+     * header injection and directory traversal via Content-Disposition.
+     *
+     * @param string $name The raw filename
+     * @return string The sanitized filename, or 'download' if empty after cleanup
+     */
+    private static function sanitizeFilename(string $name): string
+    {
+        // Remove path separators and null bytes.
+        $name = str_replace(['/', '\\', "\0"], '', $name);
+
+        // Remove control characters (0x00-0x1F, 0x7F).
+        $name = preg_replace('/[\x00-\x1F\x7F]/', '', $name);
+
+        // Escape double quotes for use inside Content-Disposition.
+        $name = str_replace('"', '\\"', $name);
+
+        return $name !== '' ? $name : 'download';
+    }
+
+    /**
+     * Download a file with proper headers.
+     *
+     * The download filename is sanitized to prevent header injection.
      *
      * @param string $filePath The path to the file
      * @param string|null $downloadName The filename for download
@@ -494,7 +562,7 @@ class File
         }
 
         $fileSize = filesize($filePath);
-        $downloadName = $downloadName ?? basename($filePath);
+        $downloadName = self::sanitizeFilename($downloadName ?? basename($filePath));
         $mimeType = self::mimeType($filePath);
 
         // Set headers for download
@@ -515,7 +583,11 @@ class File
     }
 
     /**
-     * Serve an image with proper MIME type
+     * Serve an image with proper MIME type.
+     *
+     * Validates that the file's real MIME type is an image before serving.
+     * Non-image files are rejected with a 403 to prevent disclosure of
+     * sensitive file contents (e.g. .php, .env) through this method.
      *
      * @param string $path The path to the image
      * @return void
@@ -528,11 +600,19 @@ class File
             exit;
         }
 
+        $realMime = self::mimeType($path);
+
+        if ($realMime === false || !str_starts_with($realMime, 'image/')) {
+            http_response_code(403);
+            echo '403 forbidden';
+            exit;
+        }
+
         $extension = self::extension($path);
-        $mimeType = self::IMAGE_MIME_TYPES[$extension] ?? self::mimeType($path);
+        $mimeType = self::IMAGE_MIME_TYPES[$extension] ?? $realMime;
 
         header('Content-Type: ' . $mimeType);
-        echo file_get_contents($path);
+        readfile($path);
         exit;
     }
 
