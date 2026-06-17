@@ -7,6 +7,7 @@ namespace Webrium;
 use Exception;
 use finfo;
 use Throwable;
+use Webrium\Helpers\MimeMap;
 
 class Upload
 {
@@ -26,6 +27,26 @@ class Upload
 
     protected bool $preventOverwrite = true;
     protected int $maxNameLength = 255;
+
+    /**
+     * When true, and an allow-list of extensions is set, the real MIME type
+     * (detected from file contents) must be consistent with the claimed
+     * extension. This is the core defence against extension spoofing
+     * (e.g. shell.php renamed to image.jpg). On by default.
+     */
+    protected bool $enforceMimeConsistency = true;
+
+    /**
+     * When true, extensions on the dangerous blacklist (php, svg, exe, ...)
+     * are rejected regardless of any allow-list. Can be disabled explicitly
+     * by callers who knowingly need such files.
+     */
+    protected bool $blockDangerousExtensions = true;
+
+    /**
+     * Reject zero-byte uploads. On by default.
+     */
+    protected bool $disallowEmpty = true;
 
     protected function __construct(array $fileData)
     {
@@ -163,7 +184,50 @@ class Upload
         return $this;
     }
 
+    /**
+     * Toggle the requirement that the real MIME type be consistent with the
+     * claimed extension. Disabling this re-opens the extension-spoofing hole,
+     * so only do it when you fully control the upload source.
+     */
+    public function enforceMimeConsistency(bool $enforce = true): self
+    {
+        $this->enforceMimeConsistency = $enforce;
+        return $this;
+    }
+
+    /**
+     * Explicitly allow extensions that are normally blacklisted as dangerous
+     * (php, svg, exe, html, ...). The method name is intentionally alarming:
+     * doing this on a web-accessible directory can lead to RCE or stored XSS.
+     */
+    public function allowDangerousExtensions(bool $allow = true): self
+    {
+        $this->blockDangerousExtensions = !$allow;
+        return $this;
+    }
+
+    /**
+     * Toggle rejection of zero-byte uploads.
+     */
+    public function disallowEmpty(bool $disallow = true): self
+    {
+        $this->disallowEmpty = $disallow;
+        return $this;
+    }
+
     // --- Action Methods ---
+
+    /**
+     * Whether $path is a genuine HTTP POST upload.
+     *
+     * Wraps the native is_uploaded_file() so that test doubles can override the
+     * check without an HTTP request. Production code keeps the real, secure
+     * behaviour: only files moved here by PHP's upload handler are accepted.
+     */
+    protected function isUploadedFile(string $path): bool
+    {
+        return is_uploaded_file($path);
+    }
 
     public function validate(): bool
     {
@@ -174,8 +238,22 @@ class Upload
             return false;
         }
 
-        if (!is_uploaded_file($this->tmpName)) {
+        if (!$this->isUploadedFile($this->tmpName)) {
             $this->validationErrors[] = 'Temporary file is not a valid uploaded file.';
+            return false;
+        }
+
+        if ($this->disallowEmpty && $this->size <= 0) {
+            $this->validationErrors[] = 'Empty file (0 bytes) is not allowed.';
+            return false;
+        }
+
+        $ext = $this->getExtension();
+
+        // Hard blacklist: reject executable / scriptable extensions outright,
+        // independent of any allow-list, unless explicitly opted out.
+        if ($this->blockDangerousExtensions && $ext !== '' && MimeMap::isDangerous($ext)) {
+            $this->validationErrors[] = "Files with the '.{$ext}' extension are not allowed for security reasons.";
             return false;
         }
 
@@ -183,11 +261,35 @@ class Upload
             $this->validationErrors[] = "File size ({$this->getSizeFormatted()}) exceeds the limit.";
         }
 
+        $extensionAllowed = true;
         if (!empty($this->allowedExtensions)) {
-            $ext = $this->getExtension();
             if ($ext === '' || !in_array($ext, $this->allowedExtensions, true)) {
+                $extensionAllowed = false;
                 $this->validationErrors[] = "Extension '.{$ext}' is not allowed.";
             }
+        }
+
+        // Core anti-spoofing check: when an extension allow-list is in force and
+        // the extension passed it, the real (content-sniffed) MIME type must be
+        // consistent with that extension. This blocks shell.php->image.jpg etc.
+        if (
+            $this->enforceMimeConsistency
+            && !empty($this->allowedExtensions)
+            && $extensionAllowed
+            && $ext !== ''
+        ) {
+            $realMime = $this->getMimeType();
+            $match    = MimeMap::matches($ext, $realMime);
+
+            if ($realMime === '') {
+                $this->validationErrors[] = 'Unable to determine file content type.';
+            } elseif ($match === false) {
+                // Known extension, but contents do not match it.
+                $this->validationErrors[] = "File contents (detected as '{$realMime}') do not match the '.{$ext}' extension.";
+            }
+            // $match === null => extension not in the map; we cannot cross-check
+            // by content here, so we rely on the explicit allow-list decision
+            // already made above and on any allowMimeType() rule below.
         }
 
         if (!empty($this->allowedMimeTypes)) {
@@ -338,8 +440,15 @@ class Upload
      */
     protected function sanitizeFileName(string $name): string
     {
+        // Strip directory components and anything before a null byte.
         $name = basename($name);
-        $name = preg_replace('/[^A-Za-z0-9.\-_]/', '', $name);
+        $name = str_replace("\0", '', $name);
+
+        // Remove control characters (0x00-0x1F, 0x7F) before the whitelist pass.
+        $name = preg_replace('/[\x00-\x1F\x7F]/', '', $name) ?? '';
+
+        // Whitelist: only safe characters survive.
+        $name = preg_replace('/[^A-Za-z0-9.\-_]/', '', $name) ?? '';
 
         // Collapse multiple dots to prevent double-extension attacks
         if (substr_count($name, '.') > 1) {
@@ -348,8 +457,12 @@ class Upload
             $name  = implode('-', $parts) . '.' . $ext;
         }
 
+        // Remove leading dots (hidden files) and trailing dots/spaces
+        // (Windows strips trailing dots, which can re-expose an extension).
         $name = ltrim($name, '.');
-        return $name ?: bin2hex(random_bytes(8));
+        $name = rtrim($name, '. ');
+
+        return $name !== '' ? $name : bin2hex(random_bytes(8));
     }
 
     protected function ensureNameLength(string $name): string
