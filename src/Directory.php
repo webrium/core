@@ -57,7 +57,7 @@ class Directory
     public static function set(string $name, string $path): void
     {
         self::$directories[$name] = rtrim($path, '/\\');
-        
+
         // Clear cached path for this directory
         if (isset(self::$pathCache[$name])) {
             unset(self::$pathCache[$name]);
@@ -283,7 +283,7 @@ class Directory
 
         foreach (self::all() as $name => $relativePath) {
             $path = self::path($name);
-            
+
             if (self::make($path, $permissions)) {
                 $created[] = $name;
             }
@@ -387,7 +387,7 @@ class Directory
     public static function size(string $name)
     {
         $path = self::path($name);
-        
+
         if ($path === null || !is_dir($path)) {
             return false;
         }
@@ -404,7 +404,7 @@ class Directory
     private static function calculateDirectorySize(string $path): int
     {
         $size = 0;
-        
+
         foreach (new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($path, \RecursiveDirectoryIterator::SKIP_DOTS)
         ) as $file) {
@@ -424,7 +424,7 @@ class Directory
     public static function humanSize(string $name, int $precision = 2)
     {
         $bytes = self::size($name);
-        
+
         if ($bytes === false) {
             return false;
         }
@@ -615,7 +615,7 @@ class Directory
     public static function initDefaultStructure(): void
     {
         self::setMultiple([
-            // Application directories
+            // Application directories (PSR-4, PascalCase)
             'app' => 'app',
             'controllers' => 'app/Controllers',
             'models' => 'app/Models',
@@ -628,15 +628,16 @@ class Directory
 
             // Storage directories
             'storage' => 'storage',
-            'storage_app' => 'storage/App',
-            'sessions' => 'storage/Framework/Sessions',
-            'cache' => 'storage/Framework/Cache',
-            'render_views' => 'storage/Framework/Views/rendered',
-            'static_views' => 'storage/Framework/Views/static',
+            'storage_app' => 'storage/app',
+            'sessions' => 'storage/framework/sessions',
+
+            'cache' => 'storage/framework/cache',
+            'render_views' => 'storage/framework/cache/compiled-views',
+            'static_views' => 'storage/framework/cache/static-views',
 
             // Logs and languages
-            'logs' => 'storage/Logs',
-            'langs' => 'storage/Langs',
+            'logs' => 'storage/logs',
+            'langs' => 'storage/langs',
 
             // Public directory
             'public' => 'public',
@@ -682,7 +683,7 @@ class Directory
 
         foreach ($items as $item) {
             $itemPath = $path . '/' . $item;
-            
+
             if (is_dir($itemPath)) {
                 $tree[$item] = self::buildTree($itemPath, $depth + 1, $maxDepth);
             } else {
