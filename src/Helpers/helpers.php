@@ -2,6 +2,7 @@
 
 use Webrium\Url;
 use Webrium\Header;
+use Webrium\ResponsePayload;
 use Webrium\Directory;
 use Webrium\Route;
 use Webrium\App;
@@ -264,4 +265,59 @@ function vite_assets(?string $entryPoint = null): string
     return $entryPoint === null
         ? Vite::getInstance()->assets()
         : Vite::getInstance()->assets($entryPoint);
+}
+
+/**
+ * Build an HTML response payload.
+ *
+ * The Content-Type is set to text/html so Header::respond() emits the right
+ * header and the body is sent verbatim.
+ *
+ * @param  string $content    HTML body.
+ * @param  int    $statusCode HTTP status code (default 200).
+ * @return ResponsePayload
+ */
+function html(string $content, int $statusCode = 200): ResponsePayload
+{
+    return (new ResponsePayload($content, $statusCode))
+        ->withHeader('Content-Type', 'text/html; charset=utf-8');
+}
+
+
+/**
+ * Build a JSON response payload.
+ *
+ * The data is encoded here (not in Header::respond()), and the Content-Type is
+ * set to application/json. On an encoding failure a 500 error payload is
+ * produced instead.
+ *
+ * @param  mixed $data       Any JSON-serialisable value.
+ * @param  int   $statusCode HTTP status code (default 200).
+ * @return ResponsePayload
+ */
+function json(mixed $data, int $statusCode = 200): ResponsePayload
+{
+    $encoded = json_encode($data);
+
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        $encoded    = json_encode(['error' => 'Internal server error']);
+        $statusCode = 500;
+    }
+
+    return (new ResponsePayload($encoded, $statusCode))
+        ->withHeader('Content-Type', 'application/json; charset=utf-8');
+}
+
+
+/**
+ * Build a plain-text response payload.
+ *
+ * @param  string $content    Text body.
+ * @param  int    $statusCode HTTP status code (default 200).
+ * @return ResponsePayload
+ */
+function text(string $content, int $statusCode = 200): ResponsePayload
+{
+    return (new ResponsePayload($content, $statusCode))
+        ->withHeader('Content-Type', 'text/plain; charset=utf-8');
 }
