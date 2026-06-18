@@ -75,22 +75,12 @@ class App
     public static function initialize(string $dir): void
     {
         self::setRootPath($dir);
-        self::loadHelperFunctions();
 
         if (PHP_SAPI !== 'cli') {
             Url::enforce();
         }
     }
 
-    /**
-     * Load helper functions file
-     *
-     * @return void
-     */
-    private static function loadHelperFunctions(): void
-    {
-        Kernel::runOnce(__DIR__ . '/Helpers/helpers.php');
-    }
 
     /**
      * Set the application root path
