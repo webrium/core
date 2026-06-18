@@ -123,7 +123,8 @@ class Kernel
         }
 
         if (method_exists($controller, $methodName)) {
-            Header::respond($controller->{$methodName}(...$params));
+            $arguments = self::resolveMethodArguments($controller, $methodName, $params);
+            Header::respond($controller->{$methodName}(...$arguments));
         } else {
             Debug::triggerError("Method $methodName not found in $className");
         }
@@ -131,5 +132,74 @@ class Kernel
         if (method_exists($controller, 'teardown')) {
             $controller->teardown();
         }
+    }
+
+    /**
+     * Coerce raw route parameters (always strings from the URL) into the scalar
+     * types declared by the controller method, so a method like
+     * `getPost(int $id)` works even under `declare(strict_types=1)`.
+     *
+     * Resolution is positional, matching the order route params are supplied.
+     * Only scalar type hints (int, float, bool, string) are coerced; values
+     * for untyped, union, or class-typed parameters are passed through
+     * unchanged. Non-numeric values bound for int/float are also passed
+     * through untouched, letting PHP raise its normal TypeError rather than
+     * silently coercing them to 0.
+     *
+     * @param  object $controller
+     * @param  string $methodName
+     * @param  array  $params Raw (string) route parameters, in order.
+     * @return array  Arguments with scalar values cast to the declared types.
+     */
+    private static function resolveMethodArguments(
+        object $controller,
+        string $methodName,
+        array $params
+    ): array {
+        $values = array_values($params);
+
+        try {
+            $reflection = new \ReflectionMethod($controller, $methodName);
+        } catch (\ReflectionException $e) {
+            return $values;
+        }
+
+        $parameters = $reflection->getParameters();
+
+        foreach ($values as $index => $value) {
+            if (!isset($parameters[$index]) || !is_string($value)) {
+                continue;
+            }
+
+            $type = $parameters[$index]->getType();
+
+            if (!$type instanceof \ReflectionNamedType || !$type->isBuiltin()) {
+                continue;
+            }
+
+            $values[$index] = self::castScalar($value, $type->getName());
+        }
+
+        return $values;
+    }
+
+    /**
+     * Cast a string route value to a declared scalar type. Values that cannot
+     * be meaningfully cast are returned unchanged so PHP can surface a proper
+     * TypeError instead of a misleading silent conversion.
+     *
+     * @param  string $value
+     * @param  string $type  One of int, float, bool, string.
+     * @return mixed
+     */
+    private static function castScalar(string $value, string $type): mixed
+    {
+        return match ($type) {
+            'int'    => is_numeric($value) ? (int) $value : $value,
+            'float'  => is_numeric($value) ? (float) $value : $value,
+            'bool'   => filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $value,
+            'string' => $value,
+            default  => $value,
+        };
     }
 }
