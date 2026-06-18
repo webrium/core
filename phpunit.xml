@@ -23,6 +23,7 @@
             <file>./tests/UploadHelperTest.php</file>
             <file>./tests/MimeMapTest.php</file>
             <file>./tests/EventTest.php</file>
+            <file>./tests/FlashTest.php</file>
 
 
         </testsuite>
