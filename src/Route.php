@@ -204,7 +204,10 @@ class Route
         }
 
         foreach ($params as $key => $value) {
-            $url = str_replace('{' . $key . '}', $value, $url);
+            // Cast to string so non-string parameters (e.g. int/float IDs) do
+            // not trigger a TypeError on PHP 8.1+, where str_replace() rejects
+            // a non-string/array $replace argument.
+            $url = str_replace('{' . $key . '}', (string) $value, $url);
         }
 
         if (preg_match('/\{[a-zA-Z_][a-zA-Z0-9_]*\}/', $url)) {
