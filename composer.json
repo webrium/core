@@ -1,6 +1,6 @@
 {
   "name": "webrium/core",
-  "description": "PHP Framework",
+  "description": "A lightweight set of PHP utility classes for common web tasks: routing, HTTP requests and headers, sessions, validation, file uploads, JWT, and hashing.",
   "type": "library",
   "license": "MIT",
   "authors": [
