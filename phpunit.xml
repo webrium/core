@@ -22,6 +22,7 @@
             <file>./tests/UploadTest.php</file>
             <file>./tests/UploadHelperTest.php</file>
             <file>./tests/MimeMapTest.php</file>
+            <file>./tests/EventTest.php</file>
 
 
         </testsuite>
