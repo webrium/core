@@ -684,18 +684,45 @@ class Header
     /**
      * Send an HTTP response and terminate the request.
      *
-     * Arrays and objects are JSON-encoded automatically and the
-     * Content-Type header is set to application/json. Any other value
-     * is cast to string and sent as-is.
+     * Resolution order:
+     *   1. ResponsePayload → emit its headers (if any) and echo its body. When
+     *      the payload carries no headers, nothing extra is sent (a "raw" body).
+     *   2. string          → default Content-Type text/html; echoed as-is.
+     *   3. array/object    → JSON-encoded with Content-Type application/json.
+     *
+     * The string and array/object branches preserve the previous behaviour, so
+     * existing callers (including middleware returning a raw string or array)
+     * keep working unchanged; ResponsePayload simply adds explicit control.
      *
      * @param  mixed $data        Response payload.
-     * @param  int   $statusCode  HTTP status code (default: 200).
+     * @param  int   $statusCode  HTTP status code (ignored for ResponsePayload,
+     *                            which carries its own status).
      * @return never
      */
     public static function respond(mixed $data, int $statusCode = 200): never
     {
+        // 1. A fully-described payload: it owns its status, headers and body.
+        if ($data instanceof ResponsePayload) {
+            http_response_code($data->getStatusCode());
+
+            foreach ($data->getHeaders() as $name => $value) {
+                self::set($name, $value);
+            }
+
+            echo $data->getBody();
+            exit;
+        }
+
         http_response_code($statusCode);
 
+        // 2. Plain string → HTML by default.
+        if (is_string($data)) {
+            header('Content-Type: text/html; charset=utf-8');
+            echo $data;
+            exit;
+        }
+
+        // 3. Arrays and objects → JSON.
         if (is_array($data) || is_object($data)) {
             header('Content-Type: application/json; charset=utf-8');
             $encoded = json_encode($data);
@@ -707,10 +734,11 @@ class Header
             }
 
             echo $encoded;
-        } else {
-            echo $data;
+            exit;
         }
 
+        // Fallback for any remaining scalar (int, float, bool, null).
+        echo $data;
         exit;
     }
 }
