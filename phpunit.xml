@@ -27,6 +27,7 @@
             <file>./tests/RouteTest.php</file>
             <file>./tests/HeaderRespondTest.php</file>
             <file>./tests/ResponsePayloadTest.php</file>
+            <file>./tests/KernelTest.php</file>
 
 
         </testsuite>
