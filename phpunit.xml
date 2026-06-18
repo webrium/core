@@ -25,6 +25,8 @@
             <file>./tests/EventTest.php</file>
             <file>./tests/FlashTest.php</file>
             <file>./tests/RouteTest.php</file>
+            <file>./tests/HeaderRespondTest.php</file>
+            <file>./tests/ResponsePayloadTest.php</file>
 
 
         </testsuite>
