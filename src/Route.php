@@ -19,6 +19,28 @@ class Route
     private static $middlewareIndex = -1;
 
     /**
+     * Built-in shorthand patterns for typed route parameters.
+     * Usage: {id:int}, {slug:slug}, {token:uuid}, ...
+     *
+     * @var array<string, string>
+     */
+    private static array $paramPatterns = [
+        'int'   => '/^-?\d+$/',
+        'alpha' => '/^[a-zA-Z]+$/',
+        'alnum' => '/^[a-zA-Z0-9]+$/',
+        'slug'  => '/^[a-zA-Z0-9_-]+$/',
+        'uuid'  => '/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/',
+    ];
+
+    /**
+     * HTTP methods allowed to be spoofed via a `_method` form field, since
+     * plain HTML forms only support GET/POST natively.
+     *
+     * @var string[]
+     */
+    private static array $spoofableMethods = ['PUT', 'PATCH', 'DELETE'];
+
+    /**
      * Load route files into the router.
      *
      * When called with just an array of filenames the files are resolved
@@ -147,6 +169,10 @@ class Route
     /**
      * Group routes under a shared prefix and/or middleware.
      *
+     * Middleware declared on nested groups is merged with (not replaced by)
+     * the middleware inherited from any enclosing group, so a route always
+     * runs the full chain of middleware from every group it is nested in.
+     *
      * @param string|array $options  Prefix string, or array with 'prefix' and/or 'middleware'
      * @param callable     $callback Closure that registers routes in the group
      * @return void
@@ -162,7 +188,19 @@ class Route
             $prefix = $options['prefix'] ?? '';
 
             if (isset($options['middleware'])) {
-                self::$middlewares[]   = $options['middleware'];
+                $newMiddlewares = is_array($options['middleware'])
+                    ? $options['middleware']
+                    : [$options['middleware']];
+
+                $inheritedMiddlewares = $oldMiddlewareIndex !== -1
+                    ? self::$middlewares[$oldMiddlewareIndex]
+                    : [];
+
+                if (!is_array($inheritedMiddlewares)) {
+                    $inheritedMiddlewares = [$inheritedMiddlewares];
+                }
+
+                self::$middlewares[]   = array_merge($inheritedMiddlewares, $newMiddlewares);
                 self::$middlewareIndex = count(self::$middlewares) - 1;
             }
         }
@@ -181,6 +219,9 @@ class Route
     /**
      * Generate the URL for a named route, substituting any parameters.
      *
+     * Parameter values are percent-encoded so values containing slashes,
+     * spaces or other reserved characters cannot corrupt the resulting URL.
+     *
      * @param  string $name   Route name
      * @param  array  $params Parameter values keyed by placeholder name
      * @return string Generated URL, or empty string on error
@@ -194,28 +235,35 @@ class Route
 
         $url = self::$routes[self::$routeNames[$name]]['url'];
 
-        preg_match_all('/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/', $url, $matches);
+        // Capture: 1 = name, 2 = optional '?', 3 = optional ':type'
+        preg_match_all('/\{([a-zA-Z_][a-zA-Z0-9_]*)(\?)?(?::[a-zA-Z0-9]+)?\}/', $url, $matches);
 
-        foreach ($matches[1] as $param) {
+        foreach ($matches[1] as $index => $param) {
+            $placeholder = $matches[0][$index];
+            $isOptional  = $matches[2][$index] === '?';
+
             if (!isset($params[$param])) {
+                if ($isOptional) {
+                    // Drop the placeholder and any leading slash it owns, so
+                    // '/users/{id?}' becomes '/users' when 'id' is omitted.
+                    $url = str_replace('/' . $placeholder, '', $url);
+                    $url = str_replace($placeholder, '', $url);
+                    continue;
+                }
+
                 Debug::triggerError("Missing required parameter '$param' for route '$name'.");
                 return '';
             }
+
+            $url = str_replace($placeholder, rawurlencode((string) $params[$param]), $url);
         }
 
-        foreach ($params as $key => $value) {
-            // Cast to string so non-string parameters (e.g. int/float IDs) do
-            // not trigger a TypeError on PHP 8.1+, where str_replace() rejects
-            // a non-string/array $replace argument.
-            $url = str_replace('{' . $key . '}', (string) $value, $url);
-        }
-
-        if (preg_match('/\{[a-zA-Z_][a-zA-Z0-9_]*\}/', $url)) {
+        if (preg_match('/\{[a-zA-Z_][a-zA-Z0-9_]*(\?)?(?::[a-zA-Z0-9]+)?\}/', $url)) {
             Debug::triggerError("Some parameters were not replaced in route '$name'.");
             return '';
         }
 
-        return $url;
+        return $url === '' ? '/' : $url;
     }
 
     /**
@@ -239,7 +287,7 @@ class Route
     public static function run(): void
     {
         $uri          = Url::uri();
-        $method       = Url::method();
+        $method       = self::resolveMethod();
         $matchedRoute = null;
 
         foreach (self::$routes as $route) {
@@ -261,9 +309,15 @@ class Route
             return;
         }
 
-        // Middleware guard — a failing middleware returns a 403, never falls through
-        if (!self::processMiddleware($matchedRoute)) {
-            Header::respond(['error' => 'Forbidden'], 403);
+        // Middleware guard — a failing middleware never falls through to the
+        // handler. A middleware may return `false` for the default 403, or
+        // an array (optionally containing a 'status' key) for a custom
+        // response body/status code.
+        $middlewareResult = self::processMiddleware($matchedRoute);
+
+        if ($middlewareResult !== true) {
+            self::respondMiddlewareFailure($middlewareResult);
+            return;
         }
 
         self::dispatch($matchedRoute['handler'], $matchedRoute['params']);
@@ -274,7 +328,73 @@ class Route
     // -------------------------------------------------------------------------
 
     /**
+     * Resolve the effective HTTP method for the current request.
+     *
+     * Plain HTML forms can only submit GET or POST, so a POST request
+     * carrying a `_method` field (PUT, PATCH or DELETE) is treated as that
+     * spoofed method. Any other value is ignored and the real method is used.
+     *
+     * @return string
+     */
+    private static function resolveMethod(): string
+    {
+        $method = Url::method();
+
+        if ($method === 'POST' && isset($_POST['_method'])) {
+            $spoofed = strtoupper((string) $_POST['_method']);
+
+            if (in_array($spoofed, self::$spoofableMethods, true)) {
+                return $spoofed;
+            }
+        }
+
+        return $method;
+    }
+
+    /**
+     * Send the response produced by a middleware that did not return `true`.
+     *
+     * Contract (mirrors Laravel/Symfony "return a Response to short-circuit"):
+     *   - array  → JSON body; honours an optional 'status' key (default 403,
+     *              since an array is typically a denial payload).
+     *   - string → sent verbatim via Header::respond (e.g. a rendered view or
+     *              redirect HTML); default status 200, because a view is a
+     *              legitimate response, not necessarily an error.
+     *   - object → JSON-encoded by Header::respond; default status 200.
+     *   - anything else (false, null, ...) → default 403 Forbidden.
+     *
+     * @param  mixed $middlewareResult Any non-`true` middleware return value.
+     * @return void
+     */
+    private static function respondMiddlewareFailure(mixed $middlewareResult): void
+    {
+        if (is_array($middlewareResult)) {
+            $statusCode = $middlewareResult['status'] ?? 403;
+            unset($middlewareResult['status']);
+            Header::respond($middlewareResult, (int) $statusCode);
+            return;
+        }
+
+        if (is_string($middlewareResult) || is_object($middlewareResult)) {
+            Header::respond($middlewareResult, 200);
+            return;
+        }
+
+        Header::respond(['error' => 'Forbidden'], 403);
+    }
+
+    /**
      * Match a route pattern against the current URI.
+     *
+     * Supports typed parameters using `{name:type}` (e.g. `{id:int}`). When
+     * a type is given, the captured segment must satisfy the corresponding
+     * built-in pattern or the route is rejected as a non-match.
+     *
+     * Supports optional parameters using a trailing `?` (e.g. `{id?}` or
+     * `{id?:int}`). An optional parameter may be omitted from the URI; when
+     * omitted it is simply absent from the returned params. Optional
+     * parameters are only meaningful at the end of the pattern — once one
+     * optional segment is omitted, no later segment may be present.
      *
      * @param  string $routeUrl Route pattern (may contain {param} segments)
      * @param  string $uri      Current request URI
@@ -294,23 +414,79 @@ class Route
         }
 
         $routeParts = explode('/', $routeUrl);
-        $uriParts   = explode('/', $uri);
+        $uriParts   = $uri === '' ? [] : explode('/', $uri);
 
-        if (count($routeParts) !== count($uriParts)) {
+        // The URI may legitimately be shorter than the pattern when trailing
+        // parameters are optional, but it may never be longer.
+        if (count($uriParts) > count($routeParts)) {
             return ['match' => false, 'params' => []];
         }
 
         $params = [];
 
         foreach ($routeParts as $index => $routePart) {
-            if (str_starts_with($routePart, '{')) {
-                $params[trim($routePart, '{}')] = $uriParts[$index];
-            } elseif ($routePart !== $uriParts[$index]) {
-                return ['match' => false, 'params' => []];
+            $isParam    = str_starts_with($routePart, '{');
+            $hasUriPart = array_key_exists($index, $uriParts);
+
+            if (!$isParam) {
+                // A static segment must be present and identical.
+                if (!$hasUriPart || $routePart !== $uriParts[$index]) {
+                    return ['match' => false, 'params' => []];
+                }
+                continue;
             }
+
+            [$paramName, $paramType, $optional] = self::parseParamDefinition($routePart);
+
+            if (!$hasUriPart) {
+                // Missing segment is only acceptable for an optional parameter.
+                if (!$optional) {
+                    return ['match' => false, 'params' => []];
+                }
+                // Optional and omitted: skip it (and, by extension, everything
+                // after it — guaranteed because uriParts is never longer).
+                continue;
+            }
+
+            $value = $uriParts[$index];
+
+            if ($paramType !== null && isset(self::$paramPatterns[$paramType])) {
+                if (!preg_match(self::$paramPatterns[$paramType], $value)) {
+                    return ['match' => false, 'params' => []];
+                }
+            }
+
+            $params[$paramName] = $value;
         }
 
         return ['match' => true, 'params' => $params];
+    }
+
+    /**
+     * Parse a `{name}`, `{name:type}`, `{name?}` or `{name?:type}` placeholder
+     * into its name, optional type, and optional flag.
+     *
+     * @param  string $routePart The raw segment including braces.
+     * @return array{0: string, 1: string|null, 2: bool}  [name, type|null, isOptional]
+     */
+    private static function parseParamDefinition(string $routePart): array
+    {
+        $paramDef  = trim($routePart, '{}');
+        $paramType = null;
+
+        if (str_contains($paramDef, ':')) {
+            [$paramName, $paramType] = explode(':', $paramDef, 2);
+        } else {
+            $paramName = $paramDef;
+        }
+
+        $optional = false;
+        if (str_ends_with($paramName, '?')) {
+            $optional  = true;
+            $paramName = substr($paramName, 0, -1);
+        }
+
+        return [$paramName, $paramType, $optional];
     }
 
     /**
@@ -389,12 +565,19 @@ class Route
     }
 
     /**
-     * Check whether all middleware attached to a route pass.
+     * Run every middleware attached to a route and decide the outcome.
+     *
+     * A route proceeds to its handler ONLY if every middleware returns exactly
+     * `true`. The first middleware that returns anything else short-circuits
+     * the chain and its value becomes the response:
+     *   - `false`              → default 403 (handled downstream)
+     *   - array/string/object  → that value is sent as the response
+     * This is fail-secure: any non-`true` value stops the route.
      *
      * @param  array $route
-     * @return bool
+     * @return mixed `true` to proceed, or the short-circuiting response value.
      */
-    private static function processMiddleware(array $route): bool
+    private static function processMiddleware(array $route): mixed
     {
         if ($route['middleware'] === -1) {
             return true;
@@ -407,8 +590,12 @@ class Route
         }
 
         foreach ($middlewares as $middleware) {
-            if (!self::executeMiddleware($middleware)) {
-                return false;
+            $result = self::executeMiddleware($middleware);
+
+            // Only an exact `true` lets the chain continue; everything else
+            // (false, array, string, object, null, ...) stops here.
+            if ($result !== true) {
+                return $result;
             }
         }
 
@@ -416,7 +603,7 @@ class Route
     }
 
     /**
-     * Execute a single middleware and return whether it passes.
+     * Execute a single middleware and return its raw outcome.
      *
      * Supported forms:
      *   - Closure / any callable
@@ -425,17 +612,23 @@ class Route
      *   - 'Class'          (class-based middleware; calls handle())
      *   - true / false     (static pass/fail, useful for testing)
      *
+     * Return-value contract (interpreted by processMiddleware):
+     *   - `true`               → pass; continue to the next middleware/handler
+     *   - `false`              → deny with the default 403
+     *   - array/string/object  → short-circuit; sent as the response
+     * Unresolvable or invalid middleware fail secure (return `false`).
+     *
      * @param  mixed $middleware
-     * @return bool
+     * @return mixed
      */
-    private static function executeMiddleware(mixed $middleware): bool
+    private static function executeMiddleware(mixed $middleware): mixed
     {
         if (is_bool($middleware)) {
             return $middleware;
         }
 
         if (is_callable($middleware)) {
-            return (bool) $middleware();
+            return self::normalizeMiddlewareResult($middleware());
         }
 
         if (is_string($middleware)) {
@@ -448,17 +641,17 @@ class Route
                     return false;
                 }
 
-                return (bool) (new $class())->{$method}();
+                return self::normalizeMiddlewareResult((new $class())->{$method}());
             }
 
             // Plain class name — call handle()
             if (class_exists($middleware)) {
-                return (bool) (new $middleware())->handle();
+                return self::normalizeMiddlewareResult((new $middleware())->handle());
             }
 
             // Global function name
             if (function_exists($middleware)) {
-                return (bool) call_user_func($middleware);
+                return self::normalizeMiddlewareResult(call_user_func($middleware));
             }
 
             Debug::triggerError("Middleware '$middleware' could not be resolved.");
@@ -466,6 +659,34 @@ class Route
         }
 
         Debug::triggerError("Invalid middleware handler type.");
+        return false;
+    }
+
+    /**
+     * Normalize a raw middleware return value into the routing contract.
+     *
+     * Only a strict boolean `true` is treated as "pass"; a strict boolean
+     * `false` is the default deny. Arrays, strings and objects are returned
+     * untouched so they can be sent as a custom response (JSON payload, a
+     * rendered view, a redirect body, etc.). Any other scalar that is *not*
+     * exactly `true` (e.g. 1, "1", 0, null) is deliberately NOT treated as a
+     * pass — it collapses to the default deny — keeping the contract
+     * fail-secure: a route advances only on an explicit `true`.
+     *
+     * @param  mixed $result
+     * @return mixed `true`, a response value (array/string/object), or `false`.
+     */
+    private static function normalizeMiddlewareResult(mixed $result): mixed
+    {
+        if ($result === true) {
+            return true;
+        }
+
+        if (is_array($result) || is_string($result) || is_object($result)) {
+            return $result;
+        }
+
+        // false, null, 0, 1, '' and any other non-true scalar → default deny.
         return false;
     }
 }

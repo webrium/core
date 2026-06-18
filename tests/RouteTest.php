@@ -26,13 +26,20 @@ use Webrium\Route;
  *   - registration + verb helpers build the route table correctly
  *   - prefixes (direct + nested groups) compose as documented
  *   - named routes and route() URL generation, including parameter handling
- *   - the URL-matching algorithm (matchRoute) incl. parameter extraction
- *   - middleware resolution and the pass/deny contract (the security core)
+ *     and percent-encoding
+ *   - the URL-matching algorithm (matchRoute) incl. parameter extraction and
+ *     typed parameter constraints ({id:int}, {slug:slug}, {token:uuid}, ...)
+ *   - middleware resolution and the pass/deny contract (the security core),
+ *     including cumulative middleware stacking across nested groups and the
+ *     ability for a middleware to return a custom failure response
+ *   - HTTP method spoofing (resolveMethod) used by plain HTML forms to send
+ *     PUT/PATCH/DELETE via a `_method` field
  *
  * Every test fully resets the static state via reflection in setUp(), so tests
- * are independent and order-free. No collaborator is faked: matchRoute and
- * executeMiddleware are exercised through reflection against the real code, so
- * a genuine logic regression surfaces here.
+ * are independent and order-free. No collaborator is faked: matchRoute,
+ * executeMiddleware, processMiddleware and resolveMethod are exercised through
+ * reflection against the real code, so a genuine logic regression surfaces
+ * here.
  *
  * Note on integration with HttpClient: an HttpClient<->Route round trip would
  * require booting a real HTTP server (curl talks to a socket) and would couple
@@ -45,11 +52,13 @@ class RouteTest extends TestCase
     protected function setUp(): void
     {
         $this->resetRouteState();
+        $this->resetSuperglobals();
     }
 
     protected function tearDown(): void
     {
         $this->resetRouteState();
+        $this->resetSuperglobals();
     }
 
     /**
@@ -75,6 +84,17 @@ class RouteTest extends TestCase
     }
 
     /**
+     * Reset the superglobals used by method spoofing (resolveMethod) so a
+     * test that simulates a POST + `_method` field cannot leak into the
+     * next test.
+     */
+    private function resetSuperglobals(): void
+    {
+        unset($_POST['_method']);
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+    }
+
+    /**
      * Read the private static $routes table.
      *
      * @return array<int, array<string, mixed>>
@@ -82,6 +102,18 @@ class RouteTest extends TestCase
     private function routes(): array
     {
         $prop = (new \ReflectionClass(Route::class))->getProperty('routes');
+        $prop->setAccessible(true);
+        return $prop->getValue();
+    }
+
+    /**
+     * Read the private static $middlewares table.
+     *
+     * @return array<int, mixed>
+     */
+    private function middlewares(): array
+    {
+        $prop = (new \ReflectionClass(Route::class))->getProperty('middlewares');
         $prop->setAccessible(true);
         return $prop->getValue();
     }
@@ -96,19 +128,27 @@ class RouteTest extends TestCase
         return $ref->invokeArgs(null, $args);
     }
 
+    /**
+     * Helper: place a middleware definition at index 0 of Route::$middlewares,
+     * mirroring what group() does internally.
+     *
+     * @param mixed $definition A callable or an array of callables.
+     */
+    private function registerMiddlewareStack(mixed $definition): void
+    {
+        $prop = (new \ReflectionClass(Route::class))->getProperty('middlewares');
+        $prop->setAccessible(true);
+        $prop->setValue(null, [$definition]);
+    }
+
     // =========================================================================
     // 1. Registration + verb helpers
     // =========================================================================
 
     public function testGetRegistersRouteWithLeadingSlash(): void
     {
-        Route::get('users', fn () => 'ok');
-
-        $routes = $this->routes();
-        $this->assertCount(1, $routes);
-        $this->assertSame('GET', $routes[0]['method']);
-        // Stored url is normalised to a single leading slash.
-        $this->assertSame('/users', $routes[0]['url']);
+        Route::get('users', fn () => null);
+        $this->assertSame('/users', $this->routes()[0]['url']);
     }
 
     public function testEachVerbStoresItsMethod(): void
@@ -126,17 +166,17 @@ class RouteTest extends TestCase
 
     public function testLeadingAndTrailingSlashesAreTrimmedConsistently(): void
     {
-        Route::get('/products/', fn () => null);
-        $this->assertSame('/products', $this->routes()[0]['url']);
+        Route::get('/users/', fn () => null);
+        $this->assertSame('/users', $this->routes()[0]['url']);
     }
 
     public function testVerbHelpersReturnRouteInstanceForChaining(): void
     {
-        $this->assertInstanceOf(Route::class, Route::get('x', fn () => null));
+        $this->assertInstanceOf(Route::class, Route::get('users', fn () => null));
     }
 
     // =========================================================================
-    // 2. Prefixes and groups
+    // 2. Groups (prefix + middleware)
     // =========================================================================
 
     public function testStringPrefixGroupIsApplied(): void
@@ -262,6 +302,38 @@ class RouteTest extends TestCase
         $this->assertSame('', $result);
     }
 
+    /**
+     * Parameter values must be percent-encoded so a value containing a slash,
+     * space or other reserved character cannot corrupt the generated URL or
+     * silently change the number of path segments.
+     */
+    public function testRouteUrlEncodesSpecialCharactersInParameterValue(): void
+    {
+        Route::get('search/{term}', fn () => null, 'search.show');
+        $this->assertSame(
+            '/search/hello%20world%2Fslash',
+            Route::route('search.show', ['term' => 'hello world/slash'])
+        );
+    }
+
+    /**
+     * A typed placeholder such as {id:int} must still be recognised and fully
+     * substituted by route() — including stripping the ":int" suffix from the
+     * final URL — not just the bare {id} form.
+     */
+    public function testRouteSubstitutesTypedPlaceholder(): void
+    {
+        Route::get('users/{id:int}', fn () => null, 'users.show');
+        $this->assertSame('/users/42', Route::route('users.show', ['id' => 42]));
+    }
+
+    public function testRouteReturnsEmptyStringWhenTypedParameterMissing(): void
+    {
+        Route::get('users/{id:int}', fn () => null, 'users.show');
+        $result = @Route::route('users.show', []);
+        $this->assertSame('', $result);
+    }
+
     // =========================================================================
     // 4. URL matching algorithm (matchRoute)
     // =========================================================================
@@ -314,7 +386,99 @@ class RouteTest extends TestCase
     }
 
     // =========================================================================
-    // 5. Middleware resolution and pass/deny contract (security core)
+    // 5. Typed route parameters ({name:type} constraints in matchRoute)
+    // =========================================================================
+
+    public function testMatchRouteIntConstraintAcceptsNumericSegment(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/users/{id:int}', '/users/42']);
+        $this->assertTrue($result['match']);
+        // The ":int" suffix must not leak into the extracted parameter name.
+        $this->assertSame(['id' => '42'], $result['params']);
+    }
+
+    public function testMatchRouteIntConstraintRejectsNonNumericSegment(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/users/{id:int}', '/users/abc']);
+        $this->assertFalse($result['match']);
+    }
+
+    public function testMatchRouteAlphaConstraintAcceptsLettersOnly(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/lang/{code:alpha}', '/lang/en']);
+        $this->assertTrue($result['match']);
+        $this->assertSame(['code' => 'en'], $result['params']);
+    }
+
+    public function testMatchRouteAlphaConstraintRejectsDigits(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/lang/{code:alpha}', '/lang/en2']);
+        $this->assertFalse($result['match']);
+    }
+
+    public function testMatchRouteAlnumConstraintAcceptsLettersAndDigits(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/coupon/{code:alnum}', '/coupon/SAVE10']);
+        $this->assertTrue($result['match']);
+        $this->assertSame(['code' => 'SAVE10'], $result['params']);
+    }
+
+    public function testMatchRouteAlnumConstraintRejectsSpecialCharacters(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/coupon/{code:alnum}', '/coupon/SAVE-10']);
+        $this->assertFalse($result['match']);
+    }
+
+    public function testMatchRouteSlugConstraintAcceptsHyphenAndUnderscore(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/posts/{slug:slug}', '/posts/hello_world-2024']);
+        $this->assertTrue($result['match']);
+        $this->assertSame(['slug' => 'hello_world-2024'], $result['params']);
+    }
+
+    public function testMatchRouteSlugConstraintRejectsSlashLikeContent(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/posts/{slug:slug}', '/posts/hello world']);
+        $this->assertFalse($result['match']);
+    }
+
+    public function testMatchRouteUuidConstraintAcceptsValidUuid(): void
+    {
+        $result = $this->callPrivate(
+            'matchRoute',
+            ['/orders/{id:uuid}', '/orders/550e8400-e29b-41d4-a716-446655440000']
+        );
+        $this->assertTrue($result['match']);
+        $this->assertSame(['id' => '550e8400-e29b-41d4-a716-446655440000'], $result['params']);
+    }
+
+    public function testMatchRouteUuidConstraintRejectsInvalidUuid(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/orders/{id:uuid}', '/orders/not-a-uuid']);
+        $this->assertFalse($result['match']);
+    }
+
+    /**
+     * An unrecognised type after the colon (e.g. a typo, or a type the app
+     * intends to validate later in the controller) must not crash matching;
+     * the router falls back to accepting any value, same as an untyped
+     * placeholder.
+     */
+    public function testMatchRouteUnknownTypeFallsBackToAcceptingAnyValue(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/users/{id:unknown_type}', '/users/anything-goes']);
+        $this->assertTrue($result['match']);
+        $this->assertSame(['id' => 'anything-goes'], $result['params']);
+    }
+
+    public function testMatchRouteTypedConstraintStillFailsOnStaticSegmentMismatch(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/users/{id:int}/edit', '/users/42/view']);
+        $this->assertFalse($result['match']);
+    }
+
+    // =========================================================================
+    // 6. Middleware resolution and pass/deny contract (security core)
     // =========================================================================
 
     public function testMiddlewareBooleanTruePasses(): void
@@ -337,12 +501,40 @@ class RouteTest extends TestCase
         $this->assertFalse($this->callPrivate('executeMiddleware', [fn () => false]));
     }
 
-    public function testMiddlewareClosureResultIsCoercedToBool(): void
+    public function testMiddlewareOnlyStrictTrueIsTreatedAsPass(): void
     {
-        // A truthy non-bool must be treated as a pass, a falsy one as a deny.
-        $this->assertTrue($this->callPrivate('executeMiddleware', [fn () => 1]));
+        // SECURITY (fail-secure): only an exact boolean true lets the route
+        // proceed. Truthy-but-not-true values (1, "1") must NOT pass — they
+        // are no longer silently coerced to a pass as in the old contract.
+        $this->assertTrue($this->callPrivate('executeMiddleware', [fn () => true]));
+        $this->assertNotTrue($this->callPrivate('executeMiddleware', [fn () => 1]));
+    }
+
+    public function testMiddlewareFalsyScalarResultsCollapseToDefaultDeny(): void
+    {
+        // Falsy/ambiguous scalars become a plain false (default 403), never a
+        // pass and never an echoed body.
         $this->assertFalse($this->callPrivate('executeMiddleware', [fn () => 0]));
         $this->assertFalse($this->callPrivate('executeMiddleware', [fn () => null]));
+        $this->assertFalse($this->callPrivate('executeMiddleware', [fn () => false]));
+    }
+
+    public function testMiddlewareStringResultIsReturnedAsResponseNotPass(): void
+    {
+        // A string (e.g. a rendered view) is a response, not a pass: it must
+        // be returned verbatim so it can be sent to the client, and it must
+        // NOT equal true (which would let the handler run instead).
+        $result = $this->callPrivate('executeMiddleware', [fn () => '<h1>Login</h1>']);
+        $this->assertSame('<h1>Login</h1>', $result);
+        $this->assertNotTrue($result);
+    }
+
+    public function testMiddlewareObjectResultIsReturnedAsResponseNotPass(): void
+    {
+        $obj    = (object) ['view' => 'home'];
+        $result = $this->callPrivate('executeMiddleware', [fn () => $obj]);
+        $this->assertSame($obj, $result);
+        $this->assertNotTrue($result);
     }
 
     public function testMiddlewareGlobalFunctionIsResolved(): void
@@ -375,8 +567,25 @@ class RouteTest extends TestCase
         $this->assertFalse($result);
     }
 
+    public function testMiddlewareClassAtMethodFormIsResolved(): void
+    {
+        $this->assertTrue($this->callPrivate('executeMiddleware', [RouteTestMiddlewareStub::class . '@allow']));
+        $this->assertFalse($this->callPrivate('executeMiddleware', [RouteTestMiddlewareStub::class . '@deny']));
+    }
+
+    public function testMiddlewareClassAtMethodFormDeniesWhenClassMissing(): void
+    {
+        $result = @$this->callPrivate('executeMiddleware', ['Tests\\NoSuchClass@anything']);
+        $this->assertFalse($result);
+    }
+
+    public function testMiddlewarePlainClassNameCallsHandleMethod(): void
+    {
+        $this->assertTrue($this->callPrivate('executeMiddleware', [RouteTestMiddlewareStub::class]));
+    }
+
     // =========================================================================
-    // 6. processMiddleware aggregation (all-must-pass)
+    // 7. processMiddleware aggregation (all-must-pass)
     // =========================================================================
 
     public function testProcessMiddlewareReturnsTrueWhenRouteHasNone(): void
@@ -425,16 +634,455 @@ class RouteTest extends TestCase
         $this->assertTrue($this->callPrivate('processMiddleware', [$route]));
     }
 
-    /**
-     * Helper: place a middleware definition at index 0 of Route::$middlewares,
-     * mirroring what group() does internally.
-     *
-     * @param mixed $definition A callable or an array of callables.
-     */
-    private function registerMiddlewareStack(mixed $definition): void
+    // =========================================================================
+    // 8. Middleware custom failure responses (array return value)
+    // =========================================================================
+
+    public function testExecuteMiddlewareReturnsArrayResultUnchanged(): void
     {
-        $prop = (new \ReflectionClass(Route::class))->getProperty('middlewares');
-        $prop->setAccessible(true);
-        $prop->setValue(null, [$definition]);
+        $middleware = fn () => ['error' => 'Unauthenticated', 'status' => 401];
+        $result     = $this->callPrivate('executeMiddleware', [$middleware]);
+
+        $this->assertIsArray($result);
+        $this->assertSame(['error' => 'Unauthenticated', 'status' => 401], $result);
+    }
+
+    public function testProcessMiddlewareReturnsCustomArrayOnDenial(): void
+    {
+        $this->registerMiddlewareStack([
+            fn () => true,
+            fn () => ['error' => 'Forbidden region', 'status' => 451],
+        ]);
+        $route  = ['middleware' => 0];
+        $result = $this->callPrivate('processMiddleware', [$route]);
+
+        $this->assertIsArray($result);
+        $this->assertSame(['error' => 'Forbidden region', 'status' => 451], $result);
+    }
+
+    public function testProcessMiddlewareShortCircuitsOnFirstCustomFailure(): void
+    {
+        $thirdRan = false;
+        $this->registerMiddlewareStack([
+            fn () => true,
+            fn () => ['error' => 'first failure', 'status' => 401],
+            function () use (&$thirdRan) {
+                $thirdRan = true;
+                return ['error' => 'second failure', 'status' => 403];
+            },
+        ]);
+        $route  = ['middleware' => 0];
+        $result = $this->callPrivate('processMiddleware', [$route]);
+
+        $this->assertSame(['error' => 'first failure', 'status' => 401], $result);
+        $this->assertFalse($thirdRan, 'middleware after a denial must not execute');
+    }
+
+    public function testProcessMiddlewareCustomArrayWithoutStatusKeyIsReturnedAsIs(): void
+    {
+        $this->registerMiddlewareStack(fn () => ['error' => 'Forbidden']);
+        $route  = ['middleware' => 0];
+        $result = $this->callPrivate('processMiddleware', [$route]);
+
+        $this->assertSame(['error' => 'Forbidden'], $result);
+    }
+
+    public function testMiddlewareClassAtMethodCanReturnCustomArrayResponse(): void
+    {
+        $result = $this->callPrivate(
+            'executeMiddleware',
+            [RouteTestMiddlewareStub::class . '@denyWithCustomResponse']
+        );
+
+        $this->assertSame(['error' => 'Custom denial', 'status' => 401], $result);
+    }
+
+    public function testProcessMiddlewareReturnsStringViewResponseOnShortCircuit(): void
+    {
+        // A middleware returning a rendered view (string) must short-circuit
+        // and the string must be propagated as the response, NOT coerced to a
+        // pass (which would run the handler instead of showing the view).
+        $this->registerMiddlewareStack([
+            fn () => true,
+            fn () => '<h1>Please log in</h1>',
+        ]);
+        $route  = ['middleware' => 0];
+        $result = $this->callPrivate('processMiddleware', [$route]);
+
+        $this->assertSame('<h1>Please log in</h1>', $result);
+        $this->assertNotTrue($result, 'a view response must never be treated as a pass');
+    }
+
+    public function testProcessMiddlewareStringResponseStopsLaterMiddleware(): void
+    {
+        $laterRan = false;
+        $this->registerMiddlewareStack([
+            fn () => 'redirect-or-view',
+            function () use (&$laterRan) {
+                $laterRan = true;
+                return true;
+            },
+        ]);
+        $route  = ['middleware' => 0];
+        $result = $this->callPrivate('processMiddleware', [$route]);
+
+        $this->assertSame('redirect-or-view', $result);
+        $this->assertFalse($laterRan, 'middleware after a short-circuiting response must not run');
+    }
+
+    // =========================================================================
+    // 9. Cumulative middleware stacking across nested groups
+    // =========================================================================
+
+    public function testNestedGroupMiddlewareStacksWithParent(): void
+    {
+        $outerRan = false;
+        $innerRan = false;
+
+        Route::group(
+            ['middleware' => function () use (&$outerRan) { $outerRan = true; return true; }],
+            function () use (&$innerRan): void {
+                Route::group(
+                    ['prefix' => 'inner', 'middleware' => function () use (&$innerRan) { $innerRan = true; return true; }],
+                    function (): void {
+                        Route::get('x', fn () => null);
+                    }
+                );
+            }
+        );
+
+        $route  = $this->routes()[0];
+        $result = $this->callPrivate('processMiddleware', [$route]);
+
+        $this->assertTrue($result);
+        $this->assertTrue($outerRan, 'outer group middleware must run for a route in the nested group');
+        $this->assertTrue($innerRan, 'inner group middleware must run for a route in the nested group');
+    }
+
+    public function testNestedGroupMiddlewareListContainsBothParentAndChild(): void
+    {
+        Route::group(
+            ['middleware' => fn () => true],
+            function (): void {
+                Route::group(
+                    ['prefix' => 'inner', 'middleware' => fn () => true],
+                    function (): void {
+                        Route::get('x', fn () => null);
+                    }
+                );
+            }
+        );
+
+        $route        = $this->routes()[0];
+        $middlewareList = $this->middlewares()[$route['middleware']];
+
+        $this->assertCount(2, $middlewareList, 'the merged stack must contain the parent and the child middleware');
+    }
+
+    public function testNestedGroupParentDenialBlocksRouteEvenIfChildWouldPass(): void
+    {
+        $childRan = false;
+
+        Route::group(
+            ['middleware' => fn () => false],
+            function () use (&$childRan): void {
+                Route::group(
+                    ['prefix' => 'inner', 'middleware' => function () use (&$childRan) { $childRan = true; return true; }],
+                    function (): void {
+                        Route::get('x', fn () => null);
+                    }
+                );
+            }
+        );
+
+        $route  = $this->routes()[0];
+        $result = $this->callPrivate('processMiddleware', [$route]);
+
+        $this->assertFalse($result);
+        $this->assertFalse($childRan, 'parent middleware runs first; a denial must short-circuit the child');
+    }
+
+    public function testSiblingGroupsDoNotLeakMiddlewareIntoEachOther(): void
+    {
+        Route::group(['middleware' => fn () => true], function (): void {
+            Route::get('protected', fn () => null);
+        });
+
+        // A sibling group declared afterwards, with no middleware of its own,
+        // must not inherit the previous group's middleware index.
+        Route::group('public', function (): void {
+            Route::get('open', fn () => null);
+        });
+
+        $routes = $this->routes();
+        $this->assertSame(0, $routes[0]['middleware']);
+        $this->assertSame(-1, $routes[1]['middleware']);
+    }
+
+    public function testRouteDeclaredAfterGroupClosesHasNoInheritedMiddleware(): void
+    {
+        Route::group(['middleware' => fn () => true], function (): void {
+            Route::group(['prefix' => 'inner', 'middleware' => fn () => true], function (): void {
+                Route::get('nested', fn () => null);
+            });
+        });
+        Route::get('outside', fn () => null);
+
+        $routes = $this->routes();
+        $this->assertSame(-1, $routes[1]['middleware']);
+    }
+
+    public function testGroupMiddlewareGivenAsArrayMergesAllEntriesWithParent(): void
+    {
+        Route::group(['middleware' => fn () => true], function (): void {
+            Route::group(
+                ['prefix' => 'inner', 'middleware' => [fn () => true, fn () => true]],
+                function (): void {
+                    Route::get('x', fn () => null);
+                }
+            );
+        });
+
+        $route          = $this->routes()[0];
+        $middlewareList = $this->middlewares()[$route['middleware']];
+
+        $this->assertCount(3, $middlewareList, 'one parent middleware plus two child middlewares');
+        $this->assertTrue($this->callPrivate('processMiddleware', [$route]));
+    }
+
+    // =========================================================================
+    // 10. HTTP method spoofing (resolveMethod)
+    // =========================================================================
+
+    public function testResolveMethodReturnsRealMethodWhenNoSpoofFieldPresent(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        unset($_POST['_method']);
+
+        $this->assertSame('GET', $this->callPrivate('resolveMethod', []));
+    }
+
+    public function testResolveMethodSpoofsPostToPut(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST['_method']          = 'PUT';
+
+        $this->assertSame('PUT', $this->callPrivate('resolveMethod', []));
+    }
+
+    public function testResolveMethodSpoofsPostToPatch(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST['_method']          = 'PATCH';
+
+        $this->assertSame('PATCH', $this->callPrivate('resolveMethod', []));
+    }
+
+    public function testResolveMethodSpoofsPostToDelete(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST['_method']          = 'DELETE';
+
+        $this->assertSame('DELETE', $this->callPrivate('resolveMethod', []));
+    }
+
+    public function testResolveMethodSpoofingIsCaseInsensitive(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST['_method']          = 'put';
+
+        $this->assertSame('PUT', $this->callPrivate('resolveMethod', []));
+    }
+
+    public function testResolveMethodIgnoresUnsupportedSpoofValue(): void
+    {
+        // SECURITY: only PUT/PATCH/DELETE may be spoofed; an attempt to spoof
+        // to an arbitrary value must be ignored and the real method kept.
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST['_method']          = 'GET';
+
+        $this->assertSame('POST', $this->callPrivate('resolveMethod', []));
+    }
+
+    public function testResolveMethodIgnoresSpoofFieldWhenRealMethodIsNotPost(): void
+    {
+        // A GET request carrying a stray `_method` field (e.g. from a query
+        // string) must never be spoofed; only POST may be overridden.
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $_POST['_method']          = 'DELETE';
+
+        $this->assertSame('GET', $this->callPrivate('resolveMethod', []));
+    }
+
+    // =========================================================================
+    // 11. Optional parameters {name?} and {name?:type}
+    // =========================================================================
+
+    public function testMatchRouteOptionalParameterOmitted(): void
+    {
+        // '/users/{id?}' must match '/users' with no params.
+        $result = $this->callPrivate('matchRoute', ['/users/{id?}', '/users']);
+        $this->assertTrue($result['match']);
+        $this->assertSame([], $result['params']);
+    }
+
+    public function testMatchRouteOptionalParameterProvided(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/users/{id?}', '/users/42']);
+        $this->assertTrue($result['match']);
+        $this->assertSame(['id' => '42'], $result['params']);
+    }
+
+    public function testMatchRouteOptionalParameterDoesNotMatchDeeperPath(): void
+    {
+        // A single optional segment must not swallow two URI segments.
+        $result = $this->callPrivate('matchRoute', ['/users/{id?}', '/users/1/2']);
+        $this->assertFalse($result['match']);
+    }
+
+    public function testMatchRouteRequiredParameterStillRequired(): void
+    {
+        // Sanity guard: a non-optional parameter must NOT match when omitted.
+        $result = $this->callPrivate('matchRoute', ['/users/{id}', '/users']);
+        $this->assertFalse($result['match']);
+    }
+
+    public function testMatchRouteTypedOptionalParameterOmitted(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/users/{id?:int}', '/users']);
+        $this->assertTrue($result['match']);
+        $this->assertSame([], $result['params']);
+    }
+
+    public function testMatchRouteTypedOptionalParameterAcceptsValidValue(): void
+    {
+        $result = $this->callPrivate('matchRoute', ['/users/{id?:int}', '/users/42']);
+        $this->assertTrue($result['match']);
+        $this->assertSame(['id' => '42'], $result['params']);
+    }
+
+    public function testMatchRouteTypedOptionalParameterRejectsInvalidValue(): void
+    {
+        // Present-but-wrong-type must still fail, even though the param is optional.
+        $result = $this->callPrivate('matchRoute', ['/users/{id?:int}', '/users/abc']);
+        $this->assertFalse($result['match']);
+    }
+
+    public function testMatchRouteStaticSegmentAfterRequiredParamStillEnforced(): void
+    {
+        // Mixing a required param with a trailing static segment keeps working.
+        $result = $this->callPrivate('matchRoute', ['/a/{x}/b', '/a/1/b']);
+        $this->assertTrue($result['match']);
+        $this->assertSame(['x' => '1'], $result['params']);
+    }
+
+    public function testRouteGeneratesUrlWithOptionalParameterProvided(): void
+    {
+        Route::get('users/{id?}', fn () => null, 'users.maybe');
+        $this->assertSame('/users/42', Route::route('users.maybe', ['id' => 42]));
+    }
+
+    public function testRouteGeneratesUrlWithOptionalParameterOmitted(): void
+    {
+        Route::get('users/{id?}', fn () => null, 'users.maybe');
+        // Omitting the optional param drops the segment AND its leading slash.
+        $this->assertSame('/users', Route::route('users.maybe'));
+    }
+
+    public function testRouteGeneratesUrlWithTypedOptionalParameterOmitted(): void
+    {
+        Route::get('posts/{id?:int}', fn () => null, 'posts.maybe');
+        $this->assertSame('/posts', Route::route('posts.maybe'));
+    }
+
+    public function testRouteOmittingOptionalTrailingParameterKeepsRequiredOnes(): void
+    {
+        Route::get('a/{x}/b/{y?}', fn () => null, 'mixed.maybe');
+        $this->assertSame('/a/1/b', Route::route('mixed.maybe', ['x' => 1]));
+        $this->assertSame('/a/1/b/2', Route::route('mixed.maybe', ['x' => 1, 'y' => 2]));
+    }
+
+    public function testRouteStillErrorsWhenRequiredParameterMissingAlongsideOptional(): void
+    {
+        Route::get('a/{x}/b/{y?}', fn () => null, 'mixed.maybe');
+        // 'x' is required; omitting it must still yield the documented empty string.
+        $this->assertSame('', @Route::route('mixed.maybe', ['y' => 2]));
+    }
+
+    // =========================================================================
+    // 12. Middleware failure stops the handler (regression: explicit return)
+    // =========================================================================
+
+    /**
+     * SECURITY REGRESSION GUARD:
+     * When middleware denies a route, run() must NOT fall through to the
+     * handler. Header::respond() exits in production, but run() must not rely
+     * solely on that side-effect — it issues an explicit `return`. We verify
+     * the guard by asserting run() contains a return immediately after the
+     * middleware-failure branch, since run() itself calls exit-ing output and
+     * cannot be invoked in-process.
+     */
+    public function testRunReturnsAfterMiddlewareFailureSoHandlerNeverRuns(): void
+    {
+        $source = (new \ReflectionMethod(Route::class, 'run'))->getFileName();
+        $start  = (new \ReflectionMethod(Route::class, 'run'))->getStartLine();
+        $end    = (new \ReflectionMethod(Route::class, 'run'))->getEndLine();
+        $body   = implode('', array_slice(file($source), $start - 1, $end - $start + 1));
+
+        // The failure branch must contain respondMiddlewareFailure(...) followed
+        // by a return before dispatch() is reached.
+        $this->assertMatchesRegularExpression(
+            '/respondMiddlewareFailure\([^;]*\);\s*return;/s',
+            $body,
+            'run() must explicitly return after responding to a middleware failure.'
+        );
+    }
+
+    public function testMiddlewareClassAtMethodCanReturnViewString(): void
+    {
+        // A class-based middleware (Class@method) returning a view string must
+        // have that string propagated as the response, not coerced to a pass.
+        $result = $this->callPrivate(
+            'executeMiddleware',
+            [RouteTestMiddlewareStub::class . '@renderView']
+        );
+
+        $this->assertSame('<h1>Stub view</h1>', $result);
+        $this->assertNotTrue($result);
+    }
+}
+
+/**
+ * Minimal middleware stub used to exercise the class-based middleware forms:
+ *   - "Tests\RouteTestMiddlewareStub@allow"
+ *   - "Tests\RouteTestMiddlewareStub@deny"
+ *   - "Tests\RouteTestMiddlewareStub@denyWithCustomResponse"
+ *   - "Tests\RouteTestMiddlewareStub" (plain class name, calls handle())
+ */
+class RouteTestMiddlewareStub
+{
+    public function handle(): bool
+    {
+        return true;
+    }
+
+    public function allow(): bool
+    {
+        return true;
+    }
+
+    public function deny(): bool
+    {
+        return false;
+    }
+
+    public function denyWithCustomResponse(): array
+    {
+        return ['error' => 'Custom denial', 'status' => 401];
+    }
+
+    public function renderView(): string
+    {
+        return '<h1>Stub view</h1>';
     }
 }
