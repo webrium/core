@@ -210,10 +210,16 @@ class Route
             self::$prefix = self::$prefix === '' ? $prefix : self::$prefix . '/' . $prefix;
         }
 
-        call_user_func($callback);
-
-        self::$prefix          = $oldPrefix;
-        self::$middlewareIndex = $oldMiddlewareIndex;
+        try {
+            call_user_func($callback);
+        } finally {
+            // Always restore the previous routing state, even if the callback
+            // throws. Otherwise an exception inside the group would leave the
+            // accumulated prefix/middleware behind and leak it into every route
+            // registered afterwards (state leak).
+            self::$prefix          = $oldPrefix;
+            self::$middlewareIndex = $oldMiddlewareIndex;
+        }
     }
 
     /**

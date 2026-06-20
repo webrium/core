@@ -229,6 +229,75 @@ class RouteTest extends TestCase
         $this->assertSame(0, $this->routes()[0]['middleware']);
     }
 
+    /**
+     * Regression: an exception thrown inside a group() callback must NOT leave
+     * the accumulated prefix behind. Before the fix, the lines that restored
+     * $prefix ran *after* call_user_func($callback), so a throwing callback
+     * skipped them and the prefix leaked into every route registered later.
+     */
+    public function testPrefixIsRestoredWhenGroupCallbackThrows(): void
+    {
+        try {
+            Route::group('admin', function (): void {
+                throw new \RuntimeException('boom inside group');
+            });
+        } catch (\RuntimeException $e) {
+            // The application catches the error and keeps registering routes.
+        }
+
+        // This route is declared OUTSIDE the (failed) group and must not inherit
+        // the 'admin' prefix.
+        Route::get('public', fn () => null);
+
+        $this->assertSame('/public', $this->routes()[0]['url']);
+    }
+
+    /**
+     * Regression: an exception thrown inside a group() callback must also
+     * restore $middlewareIndex to its previous value, otherwise routes declared
+     * after the failed group are wrongly attached to the group's middleware.
+     */
+    public function testMiddlewareIndexIsRestoredWhenGroupCallbackThrows(): void
+    {
+        try {
+            Route::group(['prefix' => 'secure', 'middleware' => fn () => true], function (): void {
+                throw new \RuntimeException('boom inside group');
+            });
+        } catch (\RuntimeException $e) {
+            // swallow, application continues
+        }
+
+        // Declared after the failed group: must carry the "no middleware"
+        // sentinel (-1), not the group's middleware index.
+        Route::get('open', fn () => null);
+
+        $this->assertSame(-1, $this->routes()[0]['middleware']);
+    }
+
+    /**
+     * Regression: the prefix must also be restored when a *nested* group's
+     * callback throws, falling back to the parent group's prefix rather than
+     * the innermost accumulated one.
+     */
+    public function testNestedGroupPrefixIsRestoredToParentWhenInnerCallbackThrows(): void
+    {
+        Route::group('admin', function (): void {
+            try {
+                Route::group('reports', function (): void {
+                    throw new \RuntimeException('boom in nested group');
+                });
+            } catch (\RuntimeException $e) {
+                // swallow inside parent group, keep registering
+            }
+
+            // Still inside 'admin', after the failed nested group: should be
+            // prefixed with '/admin' only, never '/admin/reports'.
+            Route::get('dashboard', fn () => null);
+        });
+
+        $this->assertSame('/admin/dashboard', $this->routes()[0]['url']);
+    }
+
     public function testRouteOutsideGroupHasNoMiddleware(): void
     {
         Route::get('open', fn () => null);
