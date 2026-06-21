@@ -28,6 +28,7 @@
             <file>./tests/HeaderRespondTest.php</file>
             <file>./tests/ResponsePayloadTest.php</file>
             <file>./tests/KernelTest.php</file>
+            <file>./tests/HttpClientTest.php</file>
 
 
         </testsuite>
