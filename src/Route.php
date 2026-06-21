@@ -43,18 +43,26 @@ class Route
     /**
      * Load route files into the router.
      *
-     * When called with just an array of filenames the files are resolved
-     * from the registered 'routes' directory (backward-compatible default).
-     * Pass a directory alias or an absolute path as the first argument to
-     * load route files from any location.
+     * When called with just an array of filenames, the files are resolved
+     * from the directory registered under the alias 'routes' in
+     * {@see Directory}.
+     *
+     * The optional second argument is the name of any other directory
+     * alias registered in {@see Directory} — NOT a relative or absolute
+     * filesystem path. To load route files from a custom location,
+     * register the alias first and then refer to it by name.
      *
      * Examples:
+     *   // Default: loads from the 'routes' alias.
      *   Route::source(['web.php', 'api.php']);
-     *   Route::source(['shop.php'], 'modules/shop/routes');
-     *   Route::source(['admin.php'], '/var/www/admin/routes');
+     *
+     *   // Custom alias: register first, then load by alias name.
+     *   Directory::set('shop_routes', 'modules/shop/routes');
+     *   Route::source(['shop.php'], 'shop_routes');
      *
      * @param  string[]    $fileNames  Filenames to load.
-     * @param  string|null $directory  Directory alias or absolute path (default: 'routes').
+     * @param  string|null $directory  Name of a directory alias registered in
+     *                                 {@see Directory}. Defaults to 'routes'.
      * @return void
      */
     public static function source(array $fileNames, ?string $directory = null): void
