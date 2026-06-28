@@ -626,6 +626,11 @@ class Directory
             'helpers' => 'app/Helpers',
             'services' => 'app/Services',
 
+            // Database directories
+            'database' => 'database',
+            'migrations' => 'database/migrations',
+            'seeders' => 'database/seeders',
+
             // Storage directories
             'storage' => 'storage',
             'storage_app' => 'storage/app',
