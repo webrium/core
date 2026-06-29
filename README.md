@@ -8,24 +8,28 @@
   [![Total Downloads](http://poser.pugx.org/webrium/core/downloads?style=for-the-badge)](https://packagist.org/packages/webrium/core)
   [![License](http://poser.pugx.org/webrium/core/license?style=for-the-badge)](https://packagist.org/packages/webrium/core)
 
-  **Fast. Modular. Elegant.**
+  **Fast · Modular · Elegant**
+
+  [**webrium.dev**](https://webrium.dev) · [Documentation](https://webrium.dev/docs/v5/core/introduction) · [GitHub](https://github.com/webrium)
 </div>
 
 ---
 
 ## 🌟 Overview
 
-**Webrium Core** is a high-performance PHP component library designed to simplify web development. While it serves as the backbone of the Webrium Framework, it is built to be completely **standalone**. Whether you're building a microservice or a full-scale web app, Webrium Core provides the essential tools without the bloat.
+**Webrium Core** is a high-performance PHP component library designed to simplify web development. While it serves as the backbone of the [Webrium Framework](https://github.com/webrium/webrium), it is built to be completely **standalone** — drop it into any PHP project and use only what you need.
+
+It provides routing, controllers, requests/responses, sessions, validation, file uploads, an HTTP client, JWT, hashing, events, filesystem helpers, localization, and a unified error handler — with no required dependencies beyond PHP itself.
 
 ## 🚀 Quick Start
 
 ### 1. Installation
-Get started via Composer:
+
 ```bash
 composer require webrium/core
 ```
 
-### 2. Basic Setup (index.php)
+### 2. Basic Setup (`index.php`)
 
 ```php
 <?php
@@ -36,39 +40,55 @@ use Webrium\Route;
 
 App::initialize(__DIR__);
 
-Route::get('/', fn()=> "Welcome to Webrium Core! 🚀" );
+Route::get('/', fn() => "Welcome to Webrium Core! 🚀");
 
 App::run();
 ```
 
----
+Then run:
 
-## 📚 Comprehensive Documentation (Wiki)
-
-Explore the full power of Webrium Core through our detailed guides:
-
-#### 🚀 Core Essentials
-*   **[App Initialization](https://github.com/webrium/core/wiki/App)**: Learn about the application structure and boot process.
-*   **[Routing System](https://github.com/webrium/core/wiki/Route)**: Define and manage clean, RESTful routes easily.
-*   **[Helper Functions](https://github.com/webrium/core/wiki/Helpers)**: Global shortcuts for URLs, redirects, input, paths, and more.
-*   **[Flash](https://github.com/webrium/core/wiki/Flash)**: Manage one-time session flash data, old input, and message display.
-
-#### 🌐 Request & Response
-*   **[URL Helpers](https://github.com/webrium/core/wiki/Url)**: Manage and generate dynamic URLs effortlessly.
-*   **[Header Management](https://github.com/webrium/core/wiki/Header)**: Control HTTP headers and responses.
-*   **[HTTP Client](https://github.com/webrium/core/wiki/HttpClient)**: Perform outgoing requests with a simple, fluent interface.
-
-#### 🛡️ Security & Validation
-*   **[Data Validator](https://github.com/webrium/core/wiki/validator)**: Robust tools for validating user input and forms.
-*   **[JWT Integration](https://github.com/webrium/core/wiki/JWT-Documentation)**: Secure your APIs with JSON Web Tokens.
-*   **[Hash Utilities](https://github.com/webrium/core/wiki/Hash)**: Secure password hashing, HMAC, tokens, and more.
-
-#### 🛠️ Files, Storage & Utilities
-*   **[File Manager](https://github.com/webrium/core/wiki/File)**: Read, write, stream, download, and manage files and directories.
-*   **[Session Manager](https://github.com/webrium/core/wiki/Session)**: Store and retrieve session data, flash messages, and counters.
-*   **[File Upload](https://github.com/webrium/core/wiki/Upload)**: A streamlined way to handle file uploads safely.
-*   **[Vite](https://github.com/webrium/core/wiki/Vite)**: Seamlessly include development and production frontend assets.
+```bash
+php -S 127.0.0.1:8000 index.php
+```
 
 ---
 
+## 📚 Documentation
 
+The complete documentation for Webrium Core lives at **[webrium.dev/docs/v5/core](https://webrium.dev/docs/v5/core/introduction)**. It covers every component the package ships with:
+
+- **Routing** — defining routes, groups, middleware, named routes, typed parameters
+- **Controllers** — class structure, `boot()` / `teardown()` lifecycle hooks
+- **Requests & Responses** — reading input, sending responses, headers, CORS, redirects
+- **Sessions** — sessions, flash messages, validation errors, old input
+- **Validation** — fluent input validation
+- **File Uploads** — secure uploads with safe defaults
+- **HTTP Client** — calling external APIs
+- **JWT** — issuing and verifying signed tokens
+- **Hashing** — passwords, HMACs, tokens, UUIDs
+- **Events** — publish/subscribe system
+- **Filesystem** — `File` and `Directory` utilities
+- **Localization** — file-based translations
+- **Error Handling** — unified handling of errors, exceptions, and fatal shutdowns
+- **Helper Functions** — the complete reference of global helpers
+
+The same documentation is also available as plain Markdown in the **[webrium/docs](https://github.com/webrium/docs)** repository.
+
+---
+
+## Part of the Webrium Ecosystem
+
+Webrium Core is one of four packages that make up the full [Webrium Framework](https://github.com/webrium/webrium):
+
+- **[`webrium/core`](https://github.com/webrium/core)** — this package
+- **[`webrium/foxdb`](https://github.com/webrium/foxdb)** — query builder, ORM, migrations, seeders
+- **[`webrium/view`](https://github.com/webrium/view)** — Blade-compatible templating engine with hybrid static caching
+- **[`webrium/console`](https://github.com/webrium/console)** — the `webrium` CLI toolkit
+
+Each is independently usable, except `webrium/console` which is framework-coupled.
+
+---
+
+## License
+
+Webrium Core is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
