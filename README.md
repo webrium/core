@@ -91,4 +91,4 @@ Each is independently usable, except `webrium/console` which is framework-couple
 
 ## License
 
-Webrium Core is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+MIT — see [LICENSE](https://github.com/webrium/core/blob/master/LICENSE).
