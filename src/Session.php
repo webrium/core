@@ -13,9 +13,11 @@ namespace Webrium;
  * Features:
  * - Session lifecycle management (start, destroy, regenerate)
  * - Data storage and retrieval with default values
- * - Flash data support for temporary messages
  * - Array manipulation helpers
  * - Security features (session regeneration, lifetime control)
+ *
+ * Note: one-request "flash" data (messages, validation errors, old input)
+ * is handled by the {@see Flash} class, which builds on Session::set()/once().
  * 
  * @package Webrium
  */
@@ -34,27 +36,6 @@ class Session
      * @var string|null
      */
     private static $savePath = null;
-
-    /**
-     * Flash data key prefix
-     *
-     * @var string
-     */
-    private const FLASH_PREFIX = '_flash_';
-
-    /**
-     * Flash data that should be kept for next request
-     *
-     * @var string
-     */
-    private const FLASH_NEW_KEY = '_flash_new';
-
-    /**
-     * Flash data from previous request
-     *
-     * @var string
-     */
-    private const FLASH_OLD_KEY = '_flash_old';
 
     /**
      * Set the custom path for storing session files
@@ -89,9 +70,6 @@ class Session
 
         session_start();
         self::$started = true;
-
-        // Manage flash data lifecycle
-        self::ageFlashData();
 
         return true;
     }
@@ -408,106 +386,6 @@ class Session
         }
 
         $_SESSION[$key][] = $value;
-    }
-
-    /**
-     * Flash data for the next request only
-     * 
-     * Useful for one-time messages like success/error notifications.
-     * 
-     * @param string|array $key The flash key or array of key-value pairs
-     * @param mixed $value The value to flash (ignored if $key is an array)
-     * @return void
-     */
-    public static function flash($key, $value = null): void
-    {
-        self::start();
-
-        if (is_array($key)) {
-            foreach ($key as $k => $v) {
-                self::flashSingle($k, $v);
-            }
-        } else {
-            self::flashSingle($key, $value);
-        }
-    }
-
-    /**
-     * Flash a single key-value pair
-     * 
-     * @param string $key The flash key
-     * @param mixed $value The value to flash
-     * @return void
-     */
-    private static function flashSingle(string $key, $value): void
-    {
-        self::set($key, $value);
-
-        if (!isset($_SESSION[self::FLASH_NEW_KEY])) {
-            $_SESSION[self::FLASH_NEW_KEY] = [];
-        }
-
-        $_SESSION[self::FLASH_NEW_KEY][] = $key;
-    }
-
-    /**
-     * Keep flash data for one more request
-     * 
-     * @param string|array|null $keys Specific keys to keep, or null for all
-     * @return void
-     */
-    public static function reflash($keys = null): void
-    {
-        self::start();
-
-        $oldFlash = $_SESSION[self::FLASH_OLD_KEY] ?? [];
-
-        if ($keys === null) {
-            $keysToReflash = $oldFlash;
-        } else {
-            $keys = is_array($keys) ? $keys : [$keys];
-            $keysToReflash = array_intersect($oldFlash, $keys);
-        }
-
-        if (!isset($_SESSION[self::FLASH_NEW_KEY])) {
-            $_SESSION[self::FLASH_NEW_KEY] = [];
-        }
-
-        $_SESSION[self::FLASH_NEW_KEY] = array_merge(
-            $_SESSION[self::FLASH_NEW_KEY],
-            $keysToReflash
-        );
-    }
-
-    /**
-     * Get flash data
-     * 
-     * @param string $key The flash key
-     * @param mixed $default Default value if key doesn't exist
-     * @return mixed The flash value or default value
-     */
-    public static function getFlash(string $key, $default = null)
-    {
-        return self::get($key, $default);
-    }
-
-    /**
-     * Age flash data (move new to old, remove old)
-     * 
-     * @return void
-     */
-    private static function ageFlashData(): void
-    {
-        // Remove old flash data
-        if (isset($_SESSION[self::FLASH_OLD_KEY])) {
-            foreach ($_SESSION[self::FLASH_OLD_KEY] as $key) {
-                unset($_SESSION[$key]);
-            }
-        }
-
-        // Move new flash data to old
-        $_SESSION[self::FLASH_OLD_KEY] = $_SESSION[self::FLASH_NEW_KEY] ?? [];
-        $_SESSION[self::FLASH_NEW_KEY] = [];
     }
 
     /**

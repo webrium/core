@@ -296,6 +296,59 @@ class Flash
     }
 
     // =========================================================================
+    // Generic One-Request Data
+    // =========================================================================
+
+    /**
+     * Flash an arbitrary key-value pair to the session for exactly one
+     * subsequent request. This is the generic counterpart to withError(),
+     * setMessage(), and withInput() for any other one-time data you need
+     * to carry across a redirect.
+     *
+     * Stored under a namespaced key so it can never collide with data used
+     * by other Flash methods or by plain Session::set() calls.
+     *
+     * @param  string  $key    An identifier for this piece of flash data.
+     * @param  mixed   $value  The value to flash.
+     * @return static
+     *
+     * @example
+     *   Flash::keep('form_input', input());
+     *   return back();
+     */
+    public static function keep(string $key, mixed $value): static
+    {
+        Session::set(self::dataKey($key), $value);
+        return new static;
+    }
+
+    /**
+     * Retrieve and consume a value flashed via keep().
+     *
+     * @param  string  $key      The identifier passed to keep().
+     * @param  mixed   $default  Value to return when nothing was flashed.
+     * @return mixed
+     *
+     * @example
+     *   $input = Flash::get('form_input', []);
+     */
+    public static function get(string $key, mixed $default = null): mixed
+    {
+        return Session::once(self::dataKey($key), $default);
+    }
+
+    /**
+     * Build the namespaced session key used by keep()/get().
+     *
+     * @param  string  $key
+     * @return string
+     */
+    private static function dataKey(string $key): string
+    {
+        return '_flash_data_' . $key;
+    }
+
+    // =========================================================================
     // Private Helpers
     // =========================================================================
 
