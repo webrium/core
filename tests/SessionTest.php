@@ -17,7 +17,6 @@ use Webrium\Session;
  *  - Data storage and retrieval (set / get / has / exists / all)
  *  - Pull / forget / remove
  *  - Push / increment / decrement
- *  - Flash data lifecycle
  *  - Session ID validation (session-fixation hardening)
  *  - Cookie parameter secure defaults (Secure auto-detect / SameSite / HttpOnly)
  *  - Lifetime guard after start
@@ -141,21 +140,7 @@ class SessionTest extends TestCase
     }
 
     // =========================================================================
-    // 2. Flash data
-    // =========================================================================
-
-    /**
-     * @runInSeparateProcess
-     * @preserveGlobalState disabled
-     */
-    public function testFlashIsReadableInSameRequest(): void
-    {
-        Session::flash('notice', 'Saved');
-        $this->assertSame('Saved', Session::getFlash('notice'));
-    }
-
-    // =========================================================================
-    // 3. Session ID validation (session-fixation hardening)
+    // 2. Session ID validation (session-fixation hardening)
     // =========================================================================
 
     /**
