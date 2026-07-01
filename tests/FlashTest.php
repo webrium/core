@@ -34,6 +34,8 @@ use Webrium\Session;
  *  - getMessage() XSS escaping and one-time consumption
  *  - hasMessage() / clearMessage()
  *  - withInput() + old() / oldAll() repopulation and defaults
+ *  - keep() / get(): generic one-request data, namespaced key
+ *  - regression: old input survives a Session::start() on the next request
  *  - fluent return values (static instance)
  */
 class FlashTest extends TestCase
@@ -470,5 +472,95 @@ class FlashTest extends TestCase
             Session::has('_flash_old'),
             'old input must be consumed from the session on first read.'
         );
+    }
+
+    // =========================================================================
+    // 5. keep() / get() — generic one-request data
+    // =========================================================================
+
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function testKeepAndGetRoundTrip(): void
+    {
+        Flash::keep('cart', ['sku' => 'ABC', 'qty' => 2]);
+
+        $this->assertSame(['sku' => 'ABC', 'qty' => 2], Flash::get('cart'));
+    }
+
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function testGetReturnsDefaultWhenNothingKept(): void
+    {
+        $this->assertNull(Flash::get('missing'));
+        $this->assertSame('fallback', Flash::get('missing', 'fallback'));
+    }
+
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function testGetConsumesValueOnFirstRead(): void
+    {
+        Flash::keep('notice', 'hello');
+
+        $this->assertSame('hello', Flash::get('notice'));
+        $this->assertNull(Flash::get('notice'), 'keep() data must be consumed after one read.');
+    }
+
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function testKeepIsNamespacedAndDoesNotCollideWithOldInput(): void
+    {
+        Flash::keep('old', 'unrelated value');
+        Flash::withInput();
+
+        $this->assertSame('unrelated value', Session::get('_flash_data_old'));
+        $this->assertNotSame('unrelated value', Session::get('_flash_old'));
+    }
+
+    // =========================================================================
+    // 6. Regression: old input must survive Session::start() on the next
+    //    request. This reproduces the original bug where Session's internal
+    //    flash-aging mechanism reused the literal key '_flash_old' and wiped
+    //    out Flash::withInput()'s data before it could ever be read.
+    // =========================================================================
+
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function testOldInputSurvivesASubsequentSessionStart(): void
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST = ['username' => 'ali'];
+        Flash::withInput();
+        $this->resetFlashCaches();
+
+        // Simulate the next request. $_SESSION persists across requests (it's
+        // the actual session store), but Session's "started" flag is a static
+        // per-process guard that would be false again on a fresh request.
+        // Close the current session first so a real session_start() can run
+        // again (PHP refuses a second session_start() while one is active),
+        // then reset the guard — exactly the boundary between two real HTTP
+        // requests hitting two separate PHP processes.
+        session_write_close();
+
+        $ref = new \ReflectionClass(Session::class);
+        $started = $ref->getProperty('started');
+        $started->setAccessible(true);
+        $started->setValue(null, false);
+
+        // Something triggers a session access before old() is ever called —
+        // exactly what happens when a controller checks Session::get('is_login')
+        // before rendering a form.
+        Session::get('is_login');
+
+        $this->assertSame('ali', Flash::old('username'));
     }
 }
