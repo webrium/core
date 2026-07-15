@@ -428,9 +428,16 @@ class Upload
     /**
      * Sanitize a file name by stripping dangerous characters and path components.
      *
+     * This is a Unicode-aware BLACKLIST, not an ASCII whitelist: any valid
+     * Unicode letter/digit/mark (Persian, Chinese, Arabic, Cyrillic, emoji, ...)
+     * is preserved. We only strip characters that are actually unsafe on
+     * common filesystems, in URLs, or in HTTP headers.
+     *
      * Rules applied:
      *  - basename() strips directory traversal attempts
-     *  - Only alphanumeric, dot, underscore, and hyphen are kept
+     *  - Invalid UTF-8 is discarded rather than passed through
+     *  - Null bytes and control characters (0x00-0x1F, 0x7F) are removed
+     *  - Reserved filesystem characters are removed: / \ : * ? " < > |
      *  - Multiple dots are collapsed so double extensions cannot be used
      *  - Leading dots are removed to prevent hidden-file creation
      *  - Falls back to a random hex name if nothing remains after sanitization
@@ -444,11 +451,25 @@ class Upload
         $name = basename($name);
         $name = str_replace("\0", '', $name);
 
-        // Remove control characters (0x00-0x1F, 0x7F) before the whitelist pass.
-        $name = preg_replace('/[\x00-\x1F\x7F]/', '', $name) ?? '';
+        // Discard invalid UTF-8 sequences rather than risk passing through
+        // malformed bytes (which can behave unpredictably in filesystems,
+        // shells, and HTTP headers). mb_scrub() removes only the broken
+        // parts and keeps everything else, including all valid scripts.
+        if (function_exists('mb_scrub')) {
+            $name = mb_scrub($name, 'UTF-8');
+        } elseif (!mb_check_encoding($name, 'UTF-8')) {
+            $name = mb_convert_encoding($name, 'UTF-8', 'UTF-8');
+        }
 
-        // Whitelist: only safe characters survive.
-        $name = preg_replace('/[^A-Za-z0-9.\-_]/', '', $name) ?? '';
+        // Remove ASCII control characters (0x00-0x1F, 0x7F).
+        $name = preg_replace('/[\x00-\x1F\x7F]/u', '', $name) ?? '';
+
+        // Remove characters reserved/problematic on common filesystems
+        // (Windows, in particular) and in URLs: / \ : * ? " < > |
+        $name = preg_replace('#[/\\\\:*?"<>|]#u', '', $name) ?? '';
+
+        // Trim whitespace (including Unicode space separators) from the ends.
+        $name = trim(preg_replace('/\s+/u', ' ', $name) ?? '');
 
         // Collapse multiple dots to prevent double-extension attacks
         if (substr_count($name, '.') > 1) {
@@ -465,16 +486,35 @@ class Upload
         return $name !== '' ? $name : bin2hex(random_bytes(8));
     }
 
+    /**
+     * Truncate the file name to maxNameLength BYTES (a filesystem/HTTP limit),
+     * while never splitting a multibyte UTF-8 character in half. A byte-based
+     * substr() on a Persian/Chinese/emoji name can cut a character mid-sequence
+     * and leave invalid UTF-8 on disk, so we shrink one character at a time
+     * and re-check the byte length instead.
+     */
     protected function ensureNameLength(string $name): string
     {
         if (strlen($name) <= $this->maxNameLength) {
             return $name;
         }
 
-        $ext     = pathinfo($name, PATHINFO_EXTENSION);
-        $base    = pathinfo($name, PATHINFO_FILENAME);
-        $allowed = $this->maxNameLength - ($ext !== '' ? strlen($ext) + 1 : 0);
-        $base    = substr($base, 0, max(1, $allowed));
+        $ext        = pathinfo($name, PATHINFO_EXTENSION);
+        $base       = pathinfo($name, PATHINFO_FILENAME);
+        $extBytes   = $ext !== '' ? strlen($ext) + 1 : 0;
+        $allowed    = max(1, $this->maxNameLength - $extBytes);
+
+        // Trim by whole characters until the base fits in the byte budget.
+        while (strlen($base) > $allowed) {
+            $base = mb_substr($base, 0, -1, 'UTF-8');
+            if ($base === '') {
+                break;
+            }
+        }
+
+        if ($base === '') {
+            $base = bin2hex(random_bytes(4));
+        }
 
         return $base . ($ext ? '.' . $ext : '');
     }
