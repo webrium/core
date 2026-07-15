@@ -544,15 +544,57 @@ class UploadTest extends TestCase
         $this->assertSame('my-file_v2.png', $name);
     }
 
+    /**
+     * The sanitizer is a Unicode-aware BLACKLIST, not an ASCII whitelist:
+     * accented/foreign letters (é, ö, ...) are valid in filenames on every
+     * modern filesystem and are preserved. Only characters that are actually
+     * unsafe (reserved filesystem characters, control characters, path
+     * separators) are stripped.
+     */
     public function testSanitizeStripsUnsafeCharacters(): void
     {
         $name = $this->callProtected($this->upload(), 'sanitizeFileName', 'héllo wörld!@#.png');
-        $this->assertMatchesRegularExpression('/^[A-Za-z0-9.\-_]+$/', $name);
+        $this->assertSame('héllo wörld!@#.png', $name);
+    }
+
+    /** @dataProvider unicodeFileNameProvider */
+    public function testSanitizePreservesNonLatinScripts(string $input, string $expected): void
+    {
+        $name = $this->callProtected($this->upload(), 'sanitizeFileName', $input);
+        $this->assertSame($expected, $name);
+    }
+
+    public static function unicodeFileNameProvider(): array
+    {
+        return [
+            'persian'  => ['گزارش.pdf', 'گزارش.pdf'],
+            'chinese'  => ['报告文件.pdf', '报告文件.pdf'],
+            'cyrillic' => ['мой_отчет.docx', 'мой_отчет.docx'],
+            'arabic'   => ['ملف مهم.docx', 'ملف مهم.docx'],
+        ];
+    }
+
+    public function testSanitizeStripsReservedFilesystemCharactersFromUnicodeName(): void
+    {
+        $name = $this->callProtected($this->upload(), 'sanitizeFileName', 'گزارش<>:"|?*.pdf');
+        $this->assertSame('گزارش.pdf', $name);
+    }
+
+    /**
+     * Under the Unicode blacklist, punctuation like !!!### is not dangerous
+     * (it's not a path separator, control character, or filesystem-reserved
+     * character), so it survives sanitization untouched.
+     */
+    public function testSanitizeKeepsHarmlessPunctuation(): void
+    {
+        $name = $this->callProtected($this->upload(), 'sanitizeFileName', '!!!###');
+        $this->assertSame('!!!###', $name);
     }
 
     public function testSanitizeFallsBackToRandomWhenNothingRemains(): void
     {
-        $name = $this->callProtected($this->upload(), 'sanitizeFileName', '!!!###');
+        // Only reserved/dangerous characters and a leading dot: nothing safe remains.
+        $name = $this->callProtected($this->upload(), 'sanitizeFileName', '/\\:*?"<>|');
         $this->assertNotEmpty($name);
         $this->assertMatchesRegularExpression('/^[0-9a-f]+$/', $name);
     }
