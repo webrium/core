@@ -615,6 +615,10 @@ class Directory
     public static function initDefaultStructure(): void
     {
         self::setMultiple([
+            // Project-level directories
+            'root' => '',
+            'resources' => 'resources',
+
             // Application directories (PSR-4, PascalCase)
             'app' => 'app',
             'controllers' => 'app/Controllers',

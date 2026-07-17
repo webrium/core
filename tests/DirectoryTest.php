@@ -357,7 +357,7 @@ class DirectoryTest extends TestCase
     {
         Directory::initDefaultStructure();
 
-        $expected = ['app', 'controllers', 'models', 'views', 'routes', 'config',
+        $expected = ['root', 'resources', 'app', 'controllers', 'models', 'views', 'routes', 'config',
                      'middleware', 'helpers', 'services', 'storage', 'storage_app',
                      'sessions', 'cache', 'render_views', 'static_views', 'logs',
                      'langs', 'public', 'assets', 'uploads'];
@@ -365,5 +365,8 @@ class DirectoryTest extends TestCase
         foreach ($expected as $key) {
             $this->assertTrue(Directory::has($key), "Expected key '{$key}' to be registered.");
         }
+
+        $this->assertSame('', Directory::get('root'));
+        $this->assertSame('resources', Directory::get('resources'));
     }
 }
