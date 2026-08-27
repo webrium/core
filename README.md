@@ -7,6 +7,7 @@
   [![Latest Stable Version](http://poser.pugx.org/webrium/core/v?style=for-the-badge)](https://packagist.org/packages/webrium/core)
   [![Total Downloads](http://poser.pugx.org/webrium/core/downloads?style=for-the-badge)](https://packagist.org/packages/webrium/core)
   [![License](http://poser.pugx.org/webrium/core/license?style=for-the-badge)](https://packagist.org/packages/webrium/core)
+[![Tests](https://github.com/webrium/core/actions/workflows/tests.yml/badge.svg)](https://github.com/webrium/core/actions/workflows/tests.yml)
 
   **Fast · Modular · Elegant**
 
