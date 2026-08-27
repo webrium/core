@@ -105,4 +105,24 @@ class HeaderCorsTest extends TestCase
 
         $this->assertSame('bool(true)', $output);
     }
+
+    public function testAllowsLiteralStarOriginWithoutCredentials(): void
+    {
+        [$output] = $this->runCors('https://anything.example', [
+            'allowed_origins' => ['*'],
+            'allow_credentials' => false,
+        ]);
+
+        $this->assertSame('bool(true)', $output);
+    }
+
+    public function testRejectsLiteralStarOriginWhenCredentialsAreAllowed(): void
+    {
+        [$output] = $this->runCors('https://anything.example', [
+            'allowed_origins' => ['*'],
+            'allow_credentials' => true,
+        ]);
+
+        $this->assertSame('bool(false)', $output);
+    }
 }
