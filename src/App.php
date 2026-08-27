@@ -370,36 +370,7 @@ class App
             return false;
         }
 
-        $origin = rtrim($origin, '/');
-
-        // Check if wildcard is set
-        if (in_array('*', self::$corsConfig['allowed_origins'])) {
-            return true;
-        }
-
-        // Check exact match or pattern
-        foreach (self::$corsConfig['allowed_origins'] as $allowed) {
-            $allowed = rtrim($allowed, '/');
-            
-            // Exact match
-            if ($allowed === $origin) {
-                return true;
-            }
-            
-            // Pattern match (e.g., https://*.example.com). The origin itself
-            // contains "://", so preg_quote() + a non-"/" delimiter is
-            // required - "/" as the delimiter would prematurely close the
-            // pattern at the first "/" in the scheme.
-            if (strpos($allowed, '*') !== false) {
-                $pattern = preg_quote($allowed, '#');
-                $pattern = str_replace('\*', '.*', $pattern);
-                if (preg_match('#^' . $pattern . '$#', $origin)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return Header::matchOrigin($origin, self::$corsConfig['allowed_origins']) !== null;
     }
 
     /**
@@ -500,8 +471,13 @@ class App
         // Get request origin
         $requestOrigin = Url::origin();
 
-        // If there's an origin header, validate it
-        if ($requestOrigin !== null && !self::isOriginAllowed($requestOrigin)) {
+        // Validate the origin and set CORS headers in a single pass -
+        // Header::cors() already runs the exact same origin-matching logic
+        // isOriginAllowed() would, so it is the single source of truth here.
+        $corsSet = Header::cors(self::$corsConfig);
+
+        // If there's an origin header and it was rejected, respond and stop
+        if ($requestOrigin !== null && !$corsSet) {
             http_response_code($errorCode);
             Header::json();
             echo json_encode([
@@ -511,9 +487,6 @@ class App
             ]);
             exit;
         }
-
-        // Set CORS headers
-        $corsSet = Header::cors(self::$corsConfig);
 
         // Handle preflight requests
         if (Url::method() === 'OPTIONS') {

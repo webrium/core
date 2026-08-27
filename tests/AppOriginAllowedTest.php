@@ -54,4 +54,11 @@ class AppOriginAllowedTest extends TestCase
 
         $this->assertFalse(App::isOriginAllowed('https://evilniix.ir'));
     }
+
+    public function testLiteralStarEntryAllowsAnyOrigin(): void
+    {
+        App::setCorsOrigins(['*']);
+
+        $this->assertTrue(App::isOriginAllowed('https://anything.example'));
+    }
 }
