@@ -323,10 +323,14 @@ class Header
                     break;
                 }
                 
-                // Pattern match (e.g., https://*.example.com)
+                // Pattern match (e.g., https://*.example.com). The origin
+                // itself contains "://", so preg_quote() + a non-"/" delimiter
+                // is required - "/" as the delimiter would prematurely close
+                // the pattern at the first "/" in the scheme.
                 if (strpos($allowed, '*') !== false) {
-                    $pattern = str_replace(['*', '.'], ['.*', '\.'], $allowed);
-                    if (preg_match('/^' . $pattern . '$/', $requestOrigin)) {
+                    $pattern = preg_quote($allowed, '#');
+                    $pattern = str_replace('\*', '.*', $pattern);
+                    if (preg_match('#^' . $pattern . '$#', $requestOrigin)) {
                         $allowedOrigin = $requestOrigin;
                         break;
                     }

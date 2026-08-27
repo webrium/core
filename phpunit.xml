@@ -29,7 +29,8 @@
             <file>./tests/ResponsePayloadTest.php</file>
             <file>./tests/KernelTest.php</file>
             <file>./tests/HttpClientTest.php</file>
-
+            <file>./tests/HeaderCorsTest.php</file>
+            <file>./tests/AppOriginAllowedTest.php</file>
 
         </testsuite>
     </testsuites>
