@@ -277,9 +277,55 @@ class Header
 
 
     /**
+     * Check whether a request origin matches an allowed-origins list.
+     *
+     * Supports exact matches and wildcard patterns (e.g.
+     * "https://*.example.com", "http://localhost:*"). A literal "*" entry
+     * matches any origin. This is the single implementation shared by
+     * Header::cors() and App::isOriginAllowed() - do not reimplement it
+     * elsewhere.
+     *
+     * @param string $requestOrigin The Origin header value to check
+     * @param array $allowedOrigins Configured allowed_origins entries
+     * @return string|null The matched allowed-origin value ("*" or the
+     *                      request origin itself), or null when nothing matches
+     */
+    public static function matchOrigin(string $requestOrigin, array $allowedOrigins): ?string
+    {
+        $requestOrigin = rtrim($requestOrigin, '/');
+
+        if (in_array('*', $allowedOrigins)) {
+            return '*';
+        }
+
+        foreach ($allowedOrigins as $allowed) {
+            $allowed = rtrim($allowed, '/');
+
+            // Exact match
+            if ($allowed === $requestOrigin) {
+                return $requestOrigin;
+            }
+
+            // Pattern match (e.g., https://*.example.com). The origin
+            // itself contains "://", so preg_quote() + a non-"/" delimiter
+            // is required - "/" as the delimiter would prematurely close
+            // the pattern at the first "/" in the scheme.
+            if (strpos($allowed, '*') !== false) {
+                $pattern = preg_quote($allowed, '#');
+                $pattern = str_replace('\*', '.*', $pattern);
+                if (preg_match('#^' . $pattern . '$#', $requestOrigin)) {
+                    return $requestOrigin;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Set CORS headers (low-level method).
-     * 
-     * This is a low-level method for setting CORS headers. 
+     *
+     * This is a low-level method for setting CORS headers.
      * For high-level CORS management, use App::corsMiddleware() instead.
      *
      * @param array $config CORS configuration with keys:
@@ -301,42 +347,12 @@ class Header
             return true;
         }
 
-        $requestOrigin = rtrim($requestOrigin, '/');
-        $allowedOrigin = null;
-
-        // Check if origin is allowed
-        if (in_array('*', $config['allowed_origins'])) {
-            // Wildcard - but cannot be used with credentials
-            if ($config['allow_credentials']) {
-                // Security: Cannot use wildcard with credentials
-                return false;
-            }
-            $allowedOrigin = '*';
-        } else {
-            // Check exact match or pattern
-            foreach ($config['allowed_origins'] as $allowed) {
-                $allowed = rtrim($allowed, '/');
-                
-                // Exact match
-                if ($allowed === $requestOrigin) {
-                    $allowedOrigin = $requestOrigin;
-                    break;
-                }
-                
-                // Pattern match (e.g., https://*.example.com). The origin
-                // itself contains "://", so preg_quote() + a non-"/" delimiter
-                // is required - "/" as the delimiter would prematurely close
-                // the pattern at the first "/" in the scheme.
-                if (strpos($allowed, '*') !== false) {
-                    $pattern = preg_quote($allowed, '#');
-                    $pattern = str_replace('\*', '.*', $pattern);
-                    if (preg_match('#^' . $pattern . '$#', $requestOrigin)) {
-                        $allowedOrigin = $requestOrigin;
-                        break;
-                    }
-                }
-            }
+        // Security: a wildcard (*) origin cannot be combined with credentials
+        if ($config['allow_credentials'] && in_array('*', $config['allowed_origins'])) {
+            return false;
         }
+
+        $allowedOrigin = self::matchOrigin($requestOrigin, $config['allowed_origins']);
 
         // If origin not allowed, don't set CORS headers
         if ($allowedOrigin === null) {
