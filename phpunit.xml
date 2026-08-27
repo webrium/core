@@ -30,7 +30,9 @@
             <file>./tests/KernelTest.php</file>
             <file>./tests/HttpClientTest.php</file>
             <file>./tests/HeaderCorsTest.php</file>
+            <file>./tests/HeaderMatchOriginTest.php</file>
             <file>./tests/AppOriginAllowedTest.php</file>
+            <file>./tests/AppCorsMiddlewareTest.php</file>
 
         </testsuite>
     </testsuites>
