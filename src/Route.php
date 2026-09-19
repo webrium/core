@@ -300,7 +300,11 @@ class Route
      */
     public static function run(): void
     {
-        $uri          = Url::uri();
+        // Match against the request path relative to the app's own
+        // subdirectory (Url::requestPath()), not the raw request URI, so
+        // routes keep matching whether the app is installed at the domain
+        // root or under a subfolder (e.g. http://example.com/blog/).
+        $uri          = Url::requestPath();
         $method       = self::resolveMethod();
         $matchedRoute = null;
 

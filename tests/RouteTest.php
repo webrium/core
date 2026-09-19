@@ -1119,6 +1119,37 @@ class RouteTest extends TestCase
         $this->assertSame('<h1>Stub view</h1>', $result);
         $this->assertNotTrue($result);
     }
+
+    // =========================================================================
+    // 13. Subfolder installs (regression: run() must match against the
+    // request path relative to the app's own base path, not the raw URI)
+    // =========================================================================
+
+    /**
+     * Regression guard for subfolder installs: when the app is not installed
+     * at the domain root (e.g. http://example.com/blog/), REQUEST_URI carries
+     * the "/blog" prefix, but registered routes never do. run() must resolve
+     * its match target through Url::requestPath() — which strips that prefix
+     * — rather than the raw Url::uri(), or every route would need to be
+     * hand-prefixed with the install subdirectory.
+     *
+     * run() itself calls Header::respond(), which echoes and exits, so it
+     * cannot be invoked in-process; this asserts on the source the same way
+     * testRunReturnsAfterMiddlewareFailureSoHandlerNeverRuns() does above.
+     */
+    public function testRunMatchesAgainstRequestPathNotRawUri(): void
+    {
+        $source = (new \ReflectionMethod(Route::class, 'run'))->getFileName();
+        $start  = (new \ReflectionMethod(Route::class, 'run'))->getStartLine();
+        $end    = (new \ReflectionMethod(Route::class, 'run'))->getEndLine();
+        $body   = implode('', array_slice(file($source), $start - 1, $end - $start + 1));
+
+        $this->assertStringContainsString(
+            'Url::requestPath()',
+            $body,
+            'run() must match against Url::requestPath(), which is relative to the app\'s base path, so subfolder installs route correctly.'
+        );
+    }
 }
 
 /**
