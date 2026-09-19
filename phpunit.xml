@@ -33,6 +33,8 @@
             <file>./tests/HeaderMatchOriginTest.php</file>
             <file>./tests/AppOriginAllowedTest.php</file>
             <file>./tests/AppCorsMiddlewareTest.php</file>
+            <file>./tests/CronExpressionTest.php</file>
+            <file>./tests/ScheduleTest.php</file>
 
         </testsuite>
     </testsuites>
