@@ -629,6 +629,7 @@ class Directory
             'middleware' => 'app/Middleware',
             'helpers' => 'app/Helpers',
             'services' => 'app/Services',
+            'schedules' => 'app/Schedules',
 
             // Database directories
             'database' => 'database',
@@ -643,6 +644,7 @@ class Directory
             'cache' => 'storage/framework/cache',
             'render_views' => 'storage/framework/cache/compiled-views',
             'static_views' => 'storage/framework/cache/static-views',
+            'schedule_locks' => 'storage/framework/schedule-locks',
 
             // Logs and languages
             'logs' => 'storage/logs',
