@@ -16,6 +16,7 @@ use Webrium\Debug;
 class Url
 {
     private static ?string $baseUrl = null;
+    private static ?string $basePath = null;
     private static ?array $parsedUrl = null;
 
     /**
@@ -99,6 +100,26 @@ class Url
             return self::$baseUrl;
         }
 
+        return self::$baseUrl = self::home() . self::basePath();
+    }
+
+    /**
+     * Get the subdirectory the application is installed under, relative to
+     * the web server's document root (e.g. "/blog" for an app installed at
+     * http://example.com/blog/, or "" when installed at the domain root).
+     *
+     * Derived by diffing the application's root path against DOCUMENT_ROOT,
+     * so it works regardless of how deep the install sits under the document
+     * root.
+     *
+     * @return string Subdirectory path, without a trailing slash
+     */
+    public static function basePath(): string
+    {
+        if (self::$basePath !== null) {
+            return self::$basePath;
+        }
+
         $documentRoot = self::documentRoot();
         $scriptPath = App::getRootPath();
 
@@ -108,10 +129,34 @@ class Url
             $scriptPath = substr($scriptPath, $position);
         }
 
-        $subdirectory = substr($scriptPath, strlen($documentRoot));
-        self::$baseUrl = self::home() . $subdirectory;
+        return self::$basePath = substr($scriptPath, strlen($documentRoot));
+    }
 
-        return self::$baseUrl;
+    /**
+     * Get the current request URI relative to the application's own
+     * subdirectory, i.e. with the base path from {@see basePath()} stripped
+     * off the front.
+     *
+     * This is what routing should match against: for an app installed at
+     * http://example.com/blog/, a request for /blog/about resolves here to
+     * /about, exactly as it would if the app were installed at the domain
+     * root. When the app is installed at the domain root, this is identical
+     * to {@see uri()}.
+     *
+     * @return string Request path relative to the application base path
+     */
+    public static function requestPath(): string
+    {
+        $uri = self::uri();
+        $basePath = self::basePath();
+
+        if ($basePath === '' || !str_starts_with($uri, $basePath)) {
+            return $uri;
+        }
+
+        $path = substr($uri, strlen($basePath));
+
+        return $path === '' ? '/' : $path;
     }
 
     /**
@@ -694,6 +739,7 @@ class Url
     public static function reset(): void
     {
         self::$baseUrl = null;
+        self::$basePath = null;
         self::$parsedUrl = null;
     }
 

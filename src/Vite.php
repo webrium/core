@@ -79,6 +79,16 @@ class Vite
     }
 
     /**
+     * Get the URL prefix for built assets, prepending the application's
+     * subdirectory (if any) so asset tags resolve correctly whether the app
+     * is installed at the domain root or under a subfolder.
+     */
+    protected function getAssetUrlPrefix(): string
+    {
+        return Url::basePath() . self::PRODUCTION_ASSET_BASE_PATH;
+    }
+
+    /**
      * Generate HTML tags for assets
      */
     public function assets(string $entryPoint = self::DEFAULT_ENTRY_POINT): string
@@ -154,23 +164,24 @@ class Vite
 
         $entryData = $manifest[$entryPoint];
         $output = '';
+        $assetUrlPrefix = $this->getAssetUrlPrefix();
 
         // 1. CSS files (if styles are extracted)
         if (isset($entryData['css']) && is_array($entryData['css'])) {
             foreach ($entryData['css'] as $cssFile) {
                 $output .= sprintf(
                     '<link rel="stylesheet" href="%s%s">' . PHP_EOL,
-                    self::PRODUCTION_ASSET_BASE_PATH,
+                    $assetUrlPrefix,
                     $cssFile
                 );
             }
         }
-        
+
         // 2. Main JS file
         if (isset($entryData['file'])) {
             $output .= sprintf(
                 '<script type="module" src="%s%s"></script>',
-                self::PRODUCTION_ASSET_BASE_PATH,
+                $assetUrlPrefix,
                 $entryData['file']
             );
         }

@@ -1002,6 +1002,100 @@ class UrlTest extends TestCase
     }
 
     // =========================================================================
+    // 23. basePath() / requestPath() / base() — subfolder installs
+    // =========================================================================
+    //
+    // App::setRootPath() is a separate static that Url::reset() does not
+    // touch, so every test in this section sets it explicitly (same pattern
+    // as DirectoryTest) rather than relying on state left over by another
+    // test.
+
+    public function testBasePathIsEmptyWhenAppRootIsTheDocumentRoot(): void
+    {
+        $root = sys_get_temp_dir() . '/webrium_url_test_' . uniqid();
+        mkdir($root, 0755, true);
+        \Webrium\App::setRootPath($root);
+        $_SERVER['DOCUMENT_ROOT'] = $root;
+
+        $this->assertSame('', Url::basePath());
+
+        rmdir($root);
+    }
+
+    public function testBasePathReturnsSubdirectoryWhenAppIsInstalledUnderIt(): void
+    {
+        $documentRoot = sys_get_temp_dir() . '/webrium_url_test_' . uniqid();
+        $appRoot      = $documentRoot . '/blog';
+        mkdir($appRoot, 0755, true);
+        \Webrium\App::setRootPath($appRoot);
+        $_SERVER['DOCUMENT_ROOT'] = $documentRoot;
+
+        $this->assertSame('/blog', Url::basePath());
+
+        rmdir($appRoot);
+        rmdir($documentRoot);
+    }
+
+    public function testBaseAppendsBasePathToHome(): void
+    {
+        $documentRoot = sys_get_temp_dir() . '/webrium_url_test_' . uniqid();
+        $appRoot      = $documentRoot . '/blog';
+        mkdir($appRoot, 0755, true);
+        \Webrium\App::setRootPath($appRoot);
+        $_SERVER['DOCUMENT_ROOT'] = $documentRoot;
+        $_SERVER['HTTP_HOST']     = 'example.com';
+
+        $this->assertSame('http://example.com/blog', Url::base());
+
+        rmdir($appRoot);
+        rmdir($documentRoot);
+    }
+
+    public function testRequestPathStripsBasePathForSubfolderInstall(): void
+    {
+        $documentRoot = sys_get_temp_dir() . '/webrium_url_test_' . uniqid();
+        $appRoot      = $documentRoot . '/blog';
+        mkdir($appRoot, 0755, true);
+        \Webrium\App::setRootPath($appRoot);
+        $_SERVER['DOCUMENT_ROOT'] = $documentRoot;
+        $_SERVER['REQUEST_URI']   = '/blog/posts/42';
+
+        $this->assertSame('/posts/42', Url::requestPath());
+
+        rmdir($appRoot);
+        rmdir($documentRoot);
+    }
+
+    public function testRequestPathOfSubfolderRootResolvesToSlash(): void
+    {
+        $documentRoot = sys_get_temp_dir() . '/webrium_url_test_' . uniqid();
+        $appRoot      = $documentRoot . '/blog';
+        mkdir($appRoot, 0755, true);
+        \Webrium\App::setRootPath($appRoot);
+        $_SERVER['DOCUMENT_ROOT'] = $documentRoot;
+        $_SERVER['REQUEST_URI']   = '/blog';
+
+        $this->assertSame('/', Url::requestPath());
+
+        rmdir($appRoot);
+        rmdir($documentRoot);
+    }
+
+    public function testRequestPathMatchesUriWhenAppIsAtDocumentRoot(): void
+    {
+        $root = sys_get_temp_dir() . '/webrium_url_test_' . uniqid();
+        mkdir($root, 0755, true);
+        \Webrium\App::setRootPath($root);
+        $_SERVER['DOCUMENT_ROOT'] = $root;
+        $_SERVER['REQUEST_URI']   = '/posts/42';
+
+        $this->assertSame(Url::uri(), Url::requestPath());
+        $this->assertSame('/posts/42', Url::requestPath());
+
+        rmdir($root);
+    }
+
+    // =========================================================================
     // Test Infrastructure (private helpers)
     // =========================================================================
 
