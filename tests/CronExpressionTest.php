@@ -122,4 +122,54 @@ class CronExpressionTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         new CronExpression('abc * * * *');
     }
+
+    // =========================================================================
+    // nextRunDate()
+    // =========================================================================
+
+    public function testNextRunDateForEveryMinuteIsOneMinuteAhead(): void
+    {
+        $cron = new CronExpression('* * * * *');
+        $next = $cron->nextRunDate($this->dt('2024-01-01 10:00:30'));
+        $this->assertSame('2024-01-01 10:01:00', $next->format('Y-m-d H:i:s'));
+    }
+
+    public function testNextRunDateSkipsToNextMatchingStep(): void
+    {
+        $cron = new CronExpression('*/15 * * * *');
+        $next = $cron->nextRunDate($this->dt('2024-01-01 10:01:00'));
+        $this->assertSame('2024-01-01 10:15:00', $next->format('Y-m-d H:i:s'));
+    }
+
+    public function testNextRunDateCrossesDayBoundary(): void
+    {
+        $cron = new CronExpression('0 0 * * *');
+        $next = $cron->nextRunDate($this->dt('2024-01-01 23:59:00'));
+        $this->assertSame('2024-01-02 00:00:00', $next->format('Y-m-d H:i:s'));
+    }
+
+    public function testNextRunDateCrossesMonthBoundaryForMonthlySchedule(): void
+    {
+        $cron = new CronExpression('0 0 1 * *');
+        $next = $cron->nextRunDate($this->dt('2024-01-15 12:00:00'));
+        $this->assertSame('2024-02-01 00:00:00', $next->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * A candidate is never due at the reference instant itself, even when
+     * it exactly matches — nextRunDate() always looks strictly forward.
+     */
+    public function testNextRunDateNeverReturnsTheReferenceInstantItself(): void
+    {
+        $cron = new CronExpression('0 0 * * *');
+        $next = $cron->nextRunDate($this->dt('2024-01-02 00:00:00'));
+        $this->assertSame('2024-01-03 00:00:00', $next->format('Y-m-d H:i:s'));
+    }
+
+    public function testNextRunDateDefaultsToNowWhenNoReferenceGiven(): void
+    {
+        $cron = new CronExpression('* * * * *');
+        $next = $cron->nextRunDate();
+        $this->assertGreaterThan(new \DateTimeImmutable(), $next);
+    }
 }

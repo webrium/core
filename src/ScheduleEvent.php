@@ -132,6 +132,14 @@ class ScheduleEvent
     }
 
     /**
+     * @return \DateTimeImmutable|null Null if nothing matches within the lookahead window (see CronExpression).
+     */
+    public function nextRunDate(?\DateTimeInterface $after = null): ?\DateTimeImmutable
+    {
+        return $this->resolvedCron()->nextRunDate($after);
+    }
+
+    /**
      * Invoke the task's callback. Throws on failure — callers decide how to
      * isolate/report that (see Schedule::runDue()).
      */

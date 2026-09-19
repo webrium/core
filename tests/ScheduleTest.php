@@ -99,6 +99,13 @@ class ScheduleTest extends TestCase
         $this->assertSame('0 3 * * *', $event->getExpression());
     }
 
+    public function testNextRunDateDelegatesToTheUnderlyingCronExpression(): void
+    {
+        $event = (new ScheduleEvent(fn () => null))->dailyAt('03:00');
+        $next  = $event->nextRunDate(new \DateTimeImmutable('2024-01-01 10:00:00'));
+        $this->assertSame('2024-01-02 03:00:00', $next->format('Y-m-d H:i:s'));
+    }
+
     // =========================================================================
     // 2. name() / lockKey()
     // =========================================================================
@@ -149,6 +156,36 @@ class ScheduleTest extends TestCase
         Schedule::call(fn () => null);
         Schedule::reset();
         $this->assertSame([], Schedule::all());
+    }
+
+    public function testFindReturnsRegisteredEventByName(): void
+    {
+        $event = Schedule::call(fn () => null)->name('reports.daily');
+        $this->assertSame($event, Schedule::find('reports.daily'));
+    }
+
+    public function testFindReturnsNullForUnknownName(): void
+    {
+        $this->assertNull(Schedule::find('does.not.exist'));
+    }
+
+    /**
+     * Schedule::run() executes a task immediately regardless of whether it
+     * is actually due — the mechanism behind an on-demand `schedule:test`
+     * command — while still going through the same lock/error isolation
+     * as runDue().
+     */
+    public function testRunExecutesATaskImmediatelyIgnoringItsDueCheck(): void
+    {
+        $ran = false;
+        // Scheduled for 03:00 daily; "now" is irrelevant to Schedule::run().
+        $event = Schedule::call(function () use (&$ran) { $ran = true; })
+            ->name('manual-trigger')->dailyAt('03:00');
+
+        $result = Schedule::run($event);
+
+        $this->assertTrue($ran);
+        $this->assertSame(['name' => 'manual-trigger', 'status' => 'ran', 'error' => null], $result);
     }
 
     // =========================================================================

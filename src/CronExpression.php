@@ -59,6 +59,41 @@ class CronExpression
     }
 
     /**
+     * Safety cap on how far ahead nextRunDate() will search (in minutes)
+     * before giving up. Covers every realistic schedule (including yearly
+     * ones) without risking an unbounded loop on a self-contradictory
+     * expression (e.g. day-of-month 31 combined with a month that never
+     * has one).
+     */
+    private const MAX_LOOKAHEAD_MINUTES = 1_053_792; // ~2 years
+
+    /**
+     * Find the next minute at or after $after (default: now) that this
+     * expression is due, minute-resolution, seconds ignored/floored.
+     *
+     * @return \DateTimeImmutable|null Null if nothing matches within the lookahead window.
+     */
+    public function nextRunDate(?\DateTimeInterface $after = null): ?\DateTimeImmutable
+    {
+        $reference = $after !== null
+            ? \DateTimeImmutable::createFromInterface($after)
+            : new \DateTimeImmutable();
+
+        $candidate = $reference
+            ->setTime((int) $reference->format('H'), (int) $reference->format('i'), 0)
+            ->modify('+1 minute');
+
+        for ($i = 0; $i < self::MAX_LOOKAHEAD_MINUTES; $i++) {
+            if ($this->isDue($candidate)) {
+                return $candidate;
+            }
+            $candidate = $candidate->modify('+1 minute');
+        }
+
+        return null;
+    }
+
+    /**
      * @return int[]
      */
     private static function expandField(string $field, int $min, int $max): array

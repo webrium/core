@@ -39,6 +39,20 @@ class Schedule
     }
 
     /**
+     * Find a registered task by its name (see ScheduleEvent::getName()).
+     */
+    public static function find(string $name): ?ScheduleEvent
+    {
+        foreach (self::$events as $event) {
+            if ($event->getName() === $name) {
+                return $event;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Clear the registry. Mainly useful for tests and for reloading the
      * schedule directory from a clean state.
      */
@@ -107,7 +121,7 @@ class Schedule
 
         foreach (self::$events as $event) {
             if ($event->isDue($now)) {
-                $report[] = self::runOne($event);
+                $report[] = self::run($event);
             }
         }
 
@@ -115,9 +129,15 @@ class Schedule
     }
 
     /**
+     * Run a single task immediately, bypassing its own due-check — used by
+     * runDue() for each due task, and directly by tooling like
+     * webrium/console's `schedule:test` to trigger one task on demand.
+     * Isolated the same way as runDue(): a failure is reported, never
+     * thrown, and the task's own overlap lock still applies.
+     *
      * @return array{name: string, status: 'ran'|'skipped'|'failed', error: string|null}
      */
-    private static function runOne(ScheduleEvent $event): array
+    public static function run(ScheduleEvent $event): array
     {
         $name = $event->getName();
         $lock = new ScheduleLock($event->lockKey());
