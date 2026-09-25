@@ -85,6 +85,66 @@ class CronExpressionTest extends TestCase
         $this->assertFalse($cron->isDue($this->dt('2024-07-01 14:30:00')));
     }
 
+    // =========================================================================
+    // Day-of-month / day-of-week interaction (standard cron semantics)
+    // =========================================================================
+
+    /**
+     * Standard cron: when BOTH day-of-month and day-of-week are restricted
+     * (neither is "*"), the day matches if EITHER one does (OR) — e.g.
+     * "0 9 1 * 1" means 9am on the 1st of the month OR every Monday, not
+     * only on the rare day that happens to be both at once.
+     */
+    public function testDayOfMonthAndDayOfWeekAreOredWhenBothRestricted(): void
+    {
+        $cron = new CronExpression('0 9 1 * 1');
+
+        // 1st of the month, a Thursday: matches via day-of-month alone.
+        $this->assertTrue($cron->isDue($this->dt('2026-10-01 09:00:00')));
+
+        // A Monday that isn't the 1st: matches via day-of-week alone.
+        $this->assertTrue($cron->isDue($this->dt('2026-10-05 09:00:00')));
+
+        // Both at once: OR is inclusive, still matches.
+        $this->assertTrue($cron->isDue($this->dt('2026-06-01 09:00:00')));
+
+        // Neither (a Friday that isn't the 1st): no match.
+        $this->assertFalse($cron->isDue($this->dt('2026-10-02 09:00:00')));
+    }
+
+    public function testDayOfMonthAloneStillActsAsAndWhenDayOfWeekIsWildcard(): void
+    {
+        $cron = new CronExpression('0 0 1 * *');
+        $this->assertTrue($cron->isDue($this->dt('2024-06-01 00:00:00')));
+        $this->assertFalse($cron->isDue($this->dt('2024-06-02 00:00:00')));
+    }
+
+    public function testDayOfWeekAloneStillActsAsAndWhenDayOfMonthIsWildcard(): void
+    {
+        $cron = new CronExpression('0 0 * * 1');
+        // 2024-01-08 is a Monday, 2024-01-09 a Tuesday.
+        $this->assertTrue($cron->isDue($this->dt('2024-01-08 00:00:00')));
+        $this->assertFalse($cron->isDue($this->dt('2024-01-09 00:00:00')));
+    }
+
+    /**
+     * A step field (e.g. every-2-days) is not the literal "*" wildcard, so
+     * it still counts as "restricted" and triggers the OR rule against a
+     * restricted day-of-week — matching standard cron, which looks at the
+     * literal field text, not whether it happens to cover every value.
+     */
+    public function testSteppedDayOfMonthCountsAsRestrictedForOrLogic(): void
+    {
+        $cron = new CronExpression('0 0 */2 * 1');
+
+        // 2024-01-08: day 8 (even, not in the odd 1,3,5... every-2 sequence)
+        // but a Monday — matches via day-of-week (OR).
+        $this->assertTrue($cron->isDue($this->dt('2024-01-08 00:00:00')));
+
+        // 2024-01-02: day 2 (even, no match) and a Tuesday (no match either).
+        $this->assertFalse($cron->isDue($this->dt('2024-01-02 00:00:00')));
+    }
+
     public function testDayOfWeekZeroMeansSunday(): void
     {
         $cron = new CronExpression('0 0 * * 0');
