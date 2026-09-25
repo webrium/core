@@ -321,3 +321,51 @@ function text(string $content, int $statusCode = 200): ResponsePayload
     return (new ResponsePayload($content, $statusCode))
         ->withHeader('Content-Type', 'text/plain; charset=utf-8');
 }
+
+
+/**
+ * Pretty-print one or more values for debugging, without stopping execution.
+ *
+ * On the CLI, output is plain var_dump(). Elsewhere, each value is wrapped in
+ * a styled <pre> block (and HTML-escaped, so dumped strings can never inject
+ * markup into the page).
+ *
+ * @param  mixed ...$vars Any number of values to dump.
+ * @return void
+ */
+function dump(mixed ...$vars): void
+{
+    $isCli = PHP_SAPI === 'cli';
+
+    foreach ($vars as $var) {
+        ob_start();
+        var_dump($var);
+        $output = ob_get_clean();
+
+        if ($isCli) {
+            echo $output;
+            continue;
+        }
+
+        echo '<pre style="background:#1e1e1e;color:#d4d4d4;padding:15px;margin:10px;'
+            . 'border-radius:6px;font-family:monospace;font-size:13px;overflow:auto;'
+            . 'text-align:left;">' . htmlspecialchars($output, ENT_QUOTES) . '</pre>';
+    }
+}
+
+
+/**
+ * Dump one or more values and immediately stop execution ("dump and die").
+ *
+ * A thin wrapper around dump(): identical output, plus exit(1) so you can
+ * drop it anywhere to inspect a value without the rest of the request
+ * running (and possibly masking what you're looking at).
+ *
+ * @param  mixed ...$vars Any number of values to dump.
+ * @return never
+ */
+function dd(mixed ...$vars): never
+{
+    dump(...$vars);
+    exit(1);
+}
