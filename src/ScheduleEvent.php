@@ -18,8 +18,17 @@ class ScheduleEvent
     private ?string $name = null;
 
     /**
-     * @param callable|string|array $callback Closure, [object|class, method],
-     *                                         'Class@method', or a global function name.
+     * @param callable|string|array $callback Any of:
+     *   - a Closure
+     *   - [$instance, 'method'] — an already-built object; works for any
+     *     visibility/dependencies, since you built it
+     *   - [ClassName::class, 'method'] or 'Class@method' — the class name
+     *     as a string. Both forms instantiate the class with `new
+     *     ClassName()` (no constructor arguments) and work whether
+     *     "method" is static or not. A class whose constructor requires
+     *     arguments can NOT be referenced this way — build it yourself and
+     *     pass [$instance, 'method'] instead.
+     *   - a global function name
      */
     public function __construct($callback)
     {
@@ -169,12 +178,23 @@ class ScheduleEvent
     {
         if (is_string($callback) && str_contains($callback, '@')) {
             [$class, $method] = explode('@', $callback, 2);
+            $callback = [$class, $method];
+        }
+
+        // [ClassName::class, 'method'] with the class given as a string
+        // (not an already-built object) only works out of the box for a
+        // *static* method — is_callable() is false for an instance method
+        // there, since there is no instance to call it on. Instantiate the
+        // class ourselves so this form works the same way whether "method"
+        // is static or not, exactly like 'Class@method' already did.
+        if (is_array($callback) && count($callback) === 2 && is_string($callback[0]) && !is_callable($callback)) {
+            [$class, $method] = $callback;
 
             if (!class_exists($class)) {
                 throw new \RuntimeException("Scheduled task class '$class' not found.");
             }
 
-            $callback = [new $class(), $method];
+            $callback = [self::instantiate($class), $method];
         }
 
         if (!is_callable($callback)) {
@@ -182,6 +202,26 @@ class ScheduleEvent
         }
 
         return call_user_func($callback);
+    }
+
+    /**
+     * Build a task class from its name alone. Since there is no dependency
+     * container here, this only works for a class with a no-argument
+     * constructor; a class that needs dependencies must be constructed by
+     * the caller and registered as an instance instead (see the class
+     * docblock).
+     */
+    private static function instantiate(string $class): object
+    {
+        try {
+            return new $class();
+        } catch (\ArgumentCountError $e) {
+            throw new \RuntimeException(
+                "Scheduled task class '$class' requires constructor arguments, so it can't be " .
+                    "referenced by class name alone. Construct it yourself and register the instance " .
+                    "instead, e.g. Schedule::call([new $class(...your dependencies...), 'method'])."
+            );
+        }
     }
 
     private function inferName(): string
