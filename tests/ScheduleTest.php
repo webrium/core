@@ -189,7 +189,71 @@ class ScheduleTest extends TestCase
     }
 
     // =========================================================================
-    // 4. loadFromDirectory(): discovery + per-file error isolation
+    // 4. Callback resolution: [Class::class, 'method'], 'Class@method',
+    //    static vs. instance methods, and constructor dependencies
+    // =========================================================================
+
+    /**
+     * [ClassName::class, 'method'] with a *non-static* method used to fail
+     * (is_callable() is false for a class-string paired with an instance
+     * method — there's no instance to call it on). It's now instantiated
+     * the same way 'Class@method' already was.
+     */
+    public function testArrayFormWithClassStringWorksForNonStaticMethod(): void
+    {
+        $event = Schedule::call([ScheduleTestTarget::class, 'ok'])->name('array-non-static');
+        $result = Schedule::run($event);
+
+        $this->assertSame(['name' => 'array-non-static', 'status' => 'ran', 'error' => null], $result);
+    }
+
+    public function testArrayFormWithClassStringStillWorksForStaticMethod(): void
+    {
+        $event = Schedule::call([ScheduleTestStaticTarget::class, 'ok'])->name('array-static');
+        $result = Schedule::run($event);
+
+        $this->assertSame(['name' => 'array-static', 'status' => 'ran', 'error' => null], $result);
+    }
+
+    public function testAtSyntaxStringFormStillWorksForNonStaticMethod(): void
+    {
+        $event = Schedule::call(\Tests\ScheduleTestTarget::class . '@ok')->name('at-syntax');
+        $result = Schedule::run($event);
+
+        $this->assertSame(['name' => 'at-syntax', 'status' => 'ran', 'error' => null], $result);
+    }
+
+    /**
+     * There is no dependency container here, so a class-name callback can
+     * only be instantiated with no constructor arguments. That failure
+     * mode must surface as a clear, actionable error — not a raw
+     * ArgumentCountError leaking out of `new $class()`.
+     */
+    public function testClassWithRequiredConstructorArgumentsFailsWithActionableMessage(): void
+    {
+        $event = Schedule::call([ScheduleTestNeedsDependency::class, 'run'])->name('needs-dependency');
+        $result = Schedule::run($event);
+
+        $this->assertSame('failed', $result['status']);
+        $this->assertStringContainsString('requires constructor arguments', $result['error']);
+        $this->assertStringContainsString('ScheduleTestNeedsDependency', $result['error']);
+    }
+
+    /**
+     * The documented workaround for the case above: build the instance
+     * yourself and register it directly.
+     */
+    public function testPreBuiltInstanceBypassesTheConstructorLimitation(): void
+    {
+        $service = new ScheduleTestNeedsDependency('a-real-dependency');
+        $event = Schedule::call([$service, 'run'])->name('pre-built-instance');
+        $result = Schedule::run($event);
+
+        $this->assertSame(['name' => 'pre-built-instance', 'status' => 'ran', 'error' => null], $result);
+    }
+
+    // =========================================================================
+    // 5. loadFromDirectory(): discovery + per-file error isolation
     // =========================================================================
 
     public function testLoadFromDirectoryRegistersTasksFromEveryFile(): void
@@ -243,7 +307,7 @@ class ScheduleTest extends TestCase
     }
 
     // =========================================================================
-    // 5. runDue(): due-filtering + per-task failure isolation + overlap lock
+    // 6. runDue(): due-filtering + per-task failure isolation + overlap lock
     // =========================================================================
 
     public function testRunDueOnlyRunsTasksThatAreDueAtGivenTime(): void
@@ -328,5 +392,28 @@ class ScheduleTestTarget
     public function ok(): bool
     {
         return true;
+    }
+}
+
+class ScheduleTestStaticTarget
+{
+    public static function ok(): bool
+    {
+        return true;
+    }
+}
+
+class ScheduleTestNeedsDependency
+{
+    private string $dependency;
+
+    public function __construct(string $dependency)
+    {
+        $this->dependency = $dependency;
+    }
+
+    public function run(): string
+    {
+        return $this->dependency;
     }
 }
