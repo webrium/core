@@ -37,6 +37,8 @@
             <file>./tests/ScheduleTest.php</file>
             <file>./tests/ViteTest.php</file>
             <file>./tests/LoggerTest.php</file>
+            <file>./tests/DumpHelperTest.php</file>
+            <file>./tests/DdHelperTest.php</file>
 
         </testsuite>
     </testsuites>
