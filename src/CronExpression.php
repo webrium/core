@@ -26,6 +26,14 @@ class CronExpression
     /** @var array<int, int[]> Expanded valid values per field, in field order. */
     private array $fields;
 
+    /**
+     * Whether the day-of-month / day-of-week field was literally restricted
+     * (i.e. not the bare "*" wildcard). Standard cron ORs these two fields
+     * together when both are restricted at once; see isDue().
+     */
+    private bool $dayOfMonthRestricted;
+    private bool $dayOfWeekRestricted;
+
     public function __construct(string $expression)
     {
         $parts = preg_split('/\s+/', trim($expression));
@@ -35,6 +43,9 @@ class CronExpression
                 "Invalid cron expression '$expression': expected 5 space-separated fields (minute hour day month weekday)."
             );
         }
+
+        $this->dayOfMonthRestricted = $parts[2] !== '*';
+        $this->dayOfWeekRestricted = $parts[4] !== '*';
 
         $this->fields = [];
         foreach ($parts as $index => $part) {
@@ -51,11 +62,24 @@ class CronExpression
 
     public function isDue(\DateTimeInterface $at): bool
     {
+        $dayOfMonthMatches = in_array((int) $at->format('j'), $this->fields[2], true);
+        $dayOfWeekMatches = in_array((int) $at->format('w'), $this->fields[4], true);
+
+        // Standard cron: when BOTH day-of-month and day-of-week are
+        // restricted (neither is "*"), the day matches if EITHER one does
+        // (OR), not only when both do at once (AND) — e.g. "0 9 1 * 1" means
+        // 9am on the 1st of the month OR every Monday, not only on the rare
+        // day that's both. When at most one of them is restricted, the
+        // unrestricted field is always true, so AND and OR agree; AND is
+        // kept for that case since it needs no special-casing.
+        $dayMatches = ($this->dayOfMonthRestricted && $this->dayOfWeekRestricted)
+            ? ($dayOfMonthMatches || $dayOfWeekMatches)
+            : ($dayOfMonthMatches && $dayOfWeekMatches);
+
         return in_array((int) $at->format('i'), $this->fields[0], true)
             && in_array((int) $at->format('G'), $this->fields[1], true)
-            && in_array((int) $at->format('j'), $this->fields[2], true)
             && in_array((int) $at->format('n'), $this->fields[3], true)
-            && in_array((int) $at->format('w'), $this->fields[4], true);
+            && $dayMatches;
     }
 
     /**
