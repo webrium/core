@@ -36,6 +36,7 @@
             <file>./tests/CronExpressionTest.php</file>
             <file>./tests/ScheduleTest.php</file>
             <file>./tests/ViteTest.php</file>
+            <file>./tests/LoggerTest.php</file>
 
         </testsuite>
     </testsuites>

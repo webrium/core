@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Webrium;
 
 use Webrium\Event;
-use Webrium\Directory;
 use Throwable;
 use ErrorException;
 
@@ -44,7 +43,6 @@ class Debug
     private static array $compiledFileMap = [];
     private static $writeErrors = true;
     private static $showErrors = true;
-    private static $logPath = false;
     private static $hasError = false;
     private static $htmlOutput = '';
     private static $errorLine = 0;
@@ -533,7 +531,9 @@ class Debug
     }
 
     /**
-     * Log error to file
+     * Hand an error off to Logger::error(), writing it to the day's
+     * "error" log file. All file I/O lives in Logger; Debug only decides
+     * *when* an error is worth logging.
      */
     private static function logError(
         string $message,
@@ -542,31 +542,12 @@ class Debug
         int $statusCode = 500,
         string $errorType = 'Error'
     ): void {
-        try {
-            $date = date('Y_m_d');
-            $time = date('H:i:s');
-            $name = "error_{$date}.txt";
-
-            $logMessage = "\n" . str_repeat("=", 80);
-            $logMessage .= "\n[{$date} {$time}] [{$statusCode}] {$errorType}";
-            $logMessage .= "\nMessage: {$message}";
-
-            if ($line) {
-                $logMessage .= "\nLine: {$line}";
-            }
-
-            if ($backtrace) {
-                $logMessage .= "\n\nStack trace:\n{$backtrace}";
-            }
-
-            $logMessage .= "\n" . str_repeat("=", 80) . "\n";
-
-            $logPath = self::getLogPath();
-            self::writeLogFile("{$logPath}/{$name}", $logMessage);
-        } catch (Throwable $e) {
-            // If logging fails, try to write to error_log
-            error_log("Debug::logError failed: " . $e->getMessage());
-        }
+        Logger::error($message, array_filter([
+            'type'   => $errorType,
+            'status' => $statusCode,
+            'line'   => $line ?: null,
+            'trace'  => $backtrace !== '' ? $backtrace : null,
+        ], fn ($value) => $value !== null));
     }
 
     /**
@@ -692,32 +673,6 @@ class Debug
     }
 
     /**
-     * Get log path
-     */
-    private static function getLogPath(): string
-    {
-        if (!self::$logPath) {
-            self::$logPath = class_exists(Directory::class)
-                ? Directory::path('logs')
-                : __DIR__ . '/../../logs';
-
-            if (!file_exists(self::$logPath)) {
-                mkdir(self::$logPath, 0755, true);
-            }
-        }
-
-        return self::$logPath;
-    }
-
-    /**
-     * Write to log file safely
-     */
-    private static function writeLogFile(string $filePath, string $content): void
-    {
-        file_put_contents($filePath, $content, FILE_APPEND | LOCK_EX);
-    }
-
-    /**
      * Set HTTP status code
      */
     public static function setStatusCode(int $code): void
@@ -775,10 +730,7 @@ class Debug
     }
     public static function setLogPath(string $path): void
     {
-        self::$logPath = $path;
-        if (!file_exists($path)) {
-            mkdir($path, 0755, true);
-        }
+        Logger::setLogPath($path);
     }
 
     /**
