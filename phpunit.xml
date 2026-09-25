@@ -35,6 +35,7 @@
             <file>./tests/AppCorsMiddlewareTest.php</file>
             <file>./tests/CronExpressionTest.php</file>
             <file>./tests/ScheduleTest.php</file>
+            <file>./tests/ViteTest.php</file>
 
         </testsuite>
     </testsuites>

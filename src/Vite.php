@@ -166,15 +166,16 @@ class Vite
         $output = '';
         $assetUrlPrefix = $this->getAssetUrlPrefix();
 
-        // 1. CSS files (if styles are extracted)
-        if (isset($entryData['css']) && is_array($entryData['css'])) {
-            foreach ($entryData['css'] as $cssFile) {
-                $output .= sprintf(
-                    '<link rel="stylesheet" href="%s%s">' . PHP_EOL,
-                    $assetUrlPrefix,
-                    $cssFile
-                );
-            }
+        // 1. CSS files, including CSS pulled in transitively through
+        // imported chunks (Rollup can fold a CSS-only entry into a shared
+        // chunk that a sibling entry merely "imports" rather than owning a
+        // direct "css" key of its own).
+        foreach ($this->collectCss($manifest, $entryPoint) as $cssFile) {
+            $output .= sprintf(
+                '<link rel="stylesheet" href="%s%s">' . PHP_EOL,
+                $assetUrlPrefix,
+                $cssFile
+            );
         }
 
         // 2. Main JS file
@@ -187,6 +188,42 @@ class Vite
         }
 
         return $output;
+    }
+
+    /**
+     * Recursively collect the CSS files owned by a manifest chunk and by
+     * every chunk it imports, deduplicated and in discovery order.
+     *
+     * @param array $manifest The decoded manifest.json
+     * @param string $chunkKey The manifest key to start from
+     * @param array $visited Keys already visited, to guard against cycles
+     * @return string[] Deduplicated list of CSS file paths
+     */
+    protected function collectCss(array $manifest, string $chunkKey, array &$visited = []): array
+    {
+        if (isset($visited[$chunkKey]) || !isset($manifest[$chunkKey])) {
+            return [];
+        }
+        $visited[$chunkKey] = true;
+
+        $chunk = $manifest[$chunkKey];
+        $css = [];
+
+        if (isset($chunk['css']) && is_array($chunk['css'])) {
+            foreach ($chunk['css'] as $cssFile) {
+                $css[$cssFile] = true;
+            }
+        }
+
+        if (isset($chunk['imports']) && is_array($chunk['imports'])) {
+            foreach ($chunk['imports'] as $importedKey) {
+                foreach ($this->collectCss($manifest, $importedKey, $visited) as $cssFile) {
+                    $css[$cssFile] = true;
+                }
+            }
+        }
+
+        return array_keys($css);
     }
 
     /**
