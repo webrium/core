@@ -500,13 +500,11 @@ class HttpClient
         if ($response === false) {
             $error = curl_error($ch);
             $errno = curl_errno($ch);
-            curl_close($ch);
             throw new \RuntimeException("cURL Error ($errno): $error");
         }
         
         // Get response info
         $info = curl_getinfo($ch);
-        curl_close($ch);
 
         // Parse response
         $parsed = $this->parseResponse($response, $info);
