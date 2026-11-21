@@ -228,6 +228,30 @@ class HttpClientTest extends TestCase
         $this->assertSame('value', $headers['X-Custom'] ?? null);
     }
 
+    public function testWithOptionsAppliesCurlOptionsWithIntegerKeys(): void
+    {
+        // Regression: array_merge() renumbered the integer CURLOPT_* keys, so
+        // curl_setopt() received option 0 and threw a ValueError.
+        $response = HttpClient::make()
+            ->withOptions([CURLOPT_COOKIE => 'sid=abc123'])
+            ->get(self::$baseUrl . '/echo');
+
+        $headers = $response->json()['headers'];
+        $this->assertSame('sid=abc123', $headers['Cookie'] ?? null);
+    }
+
+    public function testWithOptionsMergesAcrossCallsAndLastValueWins(): void
+    {
+        $response = HttpClient::make()
+            ->withOptions([CURLOPT_COOKIE => 'first=1', CURLOPT_REFERER => 'http://a.example/'])
+            ->withOptions([CURLOPT_COOKIE => 'second=2'])
+            ->get(self::$baseUrl . '/echo');
+
+        $headers = $response->json()['headers'];
+        $this->assertSame('second=2', $headers['Cookie'] ?? null);
+        $this->assertSame('http://a.example/', $headers['Referer'] ?? null);
+    }
+
     public function testWithTokenSendsBearer(): void
     {
         $response = HttpClient::make()
