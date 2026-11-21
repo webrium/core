@@ -221,7 +221,9 @@ class HttpClient
      */
     public function withOptions(array $options): self
     {
-        $this->options = array_merge($this->options, $options);
+        // The + operator keeps the integer CURLOPT_* keys intact (array_merge()
+        // would renumber them to 0, 1, 2, ...); on a key clash the new value wins.
+        $this->options = $options + $this->options;
         return $this;
     }
 
